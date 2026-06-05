@@ -1790,7 +1790,7 @@ function buildProfessionalDatesMessage() {
   }
 
   return [
-    'Equipe Willian Holanda',
+    'WR Gastro',
     '',
     'Estas sao as proximas datas com horarios disponiveis:',
     ...dates.map((date, index) => `${index + 1}. ${date} - ${freeTimeSlotsByDate[date].join(', ')}`),
@@ -1802,15 +1802,15 @@ function buildProfessionalDatesMessage() {
 
 function buildProfessionalHelpMessage() {
   return [
-    'Equipe Willian Holanda',
+    'WR Gastro',
     '',
-    'Ola. Sou o assistente virtual da equipe do Dr. Willian Holanda.',
+    'Ola. Sou o assistente virtual da WR Gastro.',
     'Escolha uma opcao para continuar:',
     '',
     '1. Marcar consulta',
     '2. Ver valores',
-    '3. Tirar duvidas',
-    '4. Exames e procedimentos',
+    '3. Cirurgia bariatrica',
+    '4. Endoscopia, colonoscopia e outros procedimentos',
     '5. Falar com atendente',
     '',
     'Voce tambem pode escrever: AGENDAR, VALORES, DUVIDAS ou ATENDENTE.',
@@ -1824,7 +1824,7 @@ function buildProfessionalHelpMessage() {
 
 function buildPricingInfoMessage() {
   return [
-    'Valores',
+    'WR Gastro - Valores',
     '',
     'Os valores podem variar conforme avaliacao medica, tipo de consulta, exame, procedimento, hospital, convenio e forma de pagamento.',
     '',
@@ -1838,24 +1838,24 @@ function buildPricingInfoMessage() {
 
 function buildQuestionsInfoMessage() {
   return [
-    'Duvidas frequentes',
+    'WR Gastro - Cirurgia bariatrica',
     '',
-    'Posso ajudar com informacoes iniciais sobre cirurgia bariatrica, endoscopia, colonoscopia, cirurgia geral e preparo para atendimento.',
+    'A cirurgia bariatrica exige avaliacao individual, indicacao medica e acompanhamento adequado antes e depois do procedimento.',
     '',
-    'Para evitar orientacao incompleta, duvidas medicas especificas devem ser avaliadas pelo Dr. Willian ou pela equipe.',
+    'A WR Gastro pode orientar sobre consulta, avaliacao, preparo, exames necessarios e encaminhamento para a equipe.',
     '',
     'Escolha uma opcao:',
     '1. Marcar consulta',
-    '4. Ver exames e procedimentos',
+    '2. Ver valores',
     '5. Falar com atendente',
   ].join('\n');
 }
 
 function buildProceduresInfoMessage() {
   return [
-    'Exames e procedimentos',
+    'WR Gastro - Exames e procedimentos',
     '',
-    'A equipe atende demandas relacionadas a:',
+    'A clinica atende demandas relacionadas a:',
     '- Consulta especializada',
     '- Cirurgia bariatrica',
     '- Cirurgia geral e digestiva',
@@ -1875,7 +1875,7 @@ function buildProfessionalGuidedStartMessage() {
   }
 
   return [
-    'Equipe Willian Holanda',
+    'WR Gastro',
     '',
     'Vou conduzir seu agendamento em poucos passos.',
     'Para comecar, me envie o nome completo do paciente.',
