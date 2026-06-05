@@ -1540,6 +1540,9 @@ function parseWhatsAppCommand(text) {
   if (/^(ajuda|menu|oi|ola|help)\b/.test(normalizedText)) return { type: 'help' };
   if (/(^|\b)(atendente|humano|falar com atendente|falar com pessoa)\b/.test(normalizedText)) return { type: 'human_handoff' };
   if (/(^|\b)(datas|datas liberadas|ver datas|listar datas)\b/.test(normalizedText)) return { type: 'list_dates' };
+  if (/(^|\b)(valor|valores|preco|precos|quanto custa|orcamento)\b/.test(normalizedText)) return { type: 'pricing_info' };
+  if (/(^|\b)(duvida|duvidas|perguntas|bariatrica|cirurgia bariatrica)\b/.test(normalizedText)) return { type: 'questions_info' };
+  if (/(^|\b)(exames|procedimentos|endoscopia|colonoscopia|cirurgia geral)\b/.test(normalizedText)) return { type: 'procedures_info' };
 
   const fields = parseStructuredWhatsAppFields(rawText);
 
@@ -1549,6 +1552,32 @@ function parseWhatsAppCommand(text) {
   if (/^status\b/.test(normalizedText)) return { type: 'appointment_status', fields };
 
   return { type: 'help' };
+}
+
+function resolveMainMenuChoice(text) {
+  const normalizedText = String(text || '')
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+
+  if (/^(1|marcar consulta|marcar|consulta|agendar consulta|agendar)$/.test(normalizedText)) {
+    return { type: 'create_appointment', fields: {} };
+  }
+  if (/^(2|valores|valor|precos|preco|ver valores|orcamento)$/.test(normalizedText)) {
+    return { type: 'pricing_info', fields: {} };
+  }
+  if (/^(3|duvidas|duvida|tirar duvidas|perguntas)$/.test(normalizedText)) {
+    return { type: 'questions_info', fields: {} };
+  }
+  if (/^(4|exames|procedimentos|endoscopia|colonoscopia|cirurgias)$/.test(normalizedText)) {
+    return { type: 'procedures_info', fields: {} };
+  }
+  if (/^(5|atendente|humano|falar com atendente|falar com pessoa)$/.test(normalizedText)) {
+    return { type: 'human_handoff', fields: {} };
+  }
+
+  return null;
 }
 
 function buildAvailableDatesMessage() {
@@ -1775,22 +1804,66 @@ function buildProfessionalHelpMessage() {
   return [
     'Equipe Willian Holanda',
     '',
-    'Posso conduzir seu atendimento automatico por aqui.',
+    'Ola. Sou o assistente virtual da equipe do Dr. Willian Holanda.',
+    'Escolha uma opcao para continuar:',
     '',
-    'Opcoes disponiveis:',
-    '1. DATAS',
-    '2. AGENDAR',
-    '3. REMARCAR',
-    '4. STATUS',
-    '5. CANCELAR',
-    '6. ATENDENTE',
+    '1. Marcar consulta',
+    '2. Ver valores',
+    '3. Tirar duvidas',
+    '4. Exames e procedimentos',
+    '5. Falar com atendente',
     '',
-    'Exemplo de consulta:',
+    'Voce tambem pode escrever: AGENDAR, VALORES, DUVIDAS ou ATENDENTE.',
+    '',
+    'Para consultar um agendamento existente, envie:',
     'STATUS',
     'CPF: 12345678901',
     'DATA: 2026-04-12',
+  ].join('\n');
+}
+
+function buildPricingInfoMessage() {
+  return [
+    'Valores',
     '',
-    'Se quiser comecar agora, envie AGENDAR.',
+    'Os valores podem variar conforme avaliacao medica, tipo de consulta, exame, procedimento, hospital, convenio e forma de pagamento.',
+    '',
+    'Para te orientar com seguranca, posso seguir por dois caminhos:',
+    '1. Marcar uma avaliacao',
+    '5. Falar com atendente para confirmar valores',
+    '',
+    'Responda 1 para marcar consulta ou 5 para falar com a equipe.',
+  ].join('\n');
+}
+
+function buildQuestionsInfoMessage() {
+  return [
+    'Duvidas frequentes',
+    '',
+    'Posso ajudar com informacoes iniciais sobre cirurgia bariatrica, endoscopia, colonoscopia, cirurgia geral e preparo para atendimento.',
+    '',
+    'Para evitar orientacao incompleta, duvidas medicas especificas devem ser avaliadas pelo Dr. Willian ou pela equipe.',
+    '',
+    'Escolha uma opcao:',
+    '1. Marcar consulta',
+    '4. Ver exames e procedimentos',
+    '5. Falar com atendente',
+  ].join('\n');
+}
+
+function buildProceduresInfoMessage() {
+  return [
+    'Exames e procedimentos',
+    '',
+    'A equipe atende demandas relacionadas a:',
+    '- Consulta especializada',
+    '- Cirurgia bariatrica',
+    '- Cirurgia geral e digestiva',
+    '- Endoscopia digestiva',
+    '- Colonoscopia',
+    '',
+    'Para agendar, responda 1.',
+    'Para tirar duvidas com a equipe, responda 5.',
   ].join('\n');
 }
 
@@ -2312,6 +2385,21 @@ function executeWhatsAppCommand(command, sender) {
     return { replyText: buildProfessionalHelpMessage(), action: 'help' };
   }
 
+  if (command.type === 'pricing_info') {
+    clearWhatsAppSession(sender.phoneNumber);
+    return { replyText: buildPricingInfoMessage(), action: 'pricing_info' };
+  }
+
+  if (command.type === 'questions_info') {
+    clearWhatsAppSession(sender.phoneNumber);
+    return { replyText: buildQuestionsInfoMessage(), action: 'questions_info' };
+  }
+
+  if (command.type === 'procedures_info') {
+    clearWhatsAppSession(sender.phoneNumber);
+    return { replyText: buildProceduresInfoMessage(), action: 'procedures_info' };
+  }
+
   if (command.type === 'list_dates') {
     clearWhatsAppSession(sender.phoneNumber);
     return { replyText: buildProfessionalDatesMessage(), action: 'list_dates' };
@@ -2709,6 +2797,21 @@ function executeEnhancedWhatsAppCommand(command, sender) {
     return { replyText: buildProfessionalHelpMessage(), action: 'help' };
   }
 
+  if (command.type === 'pricing_info') {
+    clearWhatsAppSession(sender.phoneNumber);
+    return { replyText: buildPricingInfoMessage(), action: 'pricing_info' };
+  }
+
+  if (command.type === 'questions_info') {
+    clearWhatsAppSession(sender.phoneNumber);
+    return { replyText: buildQuestionsInfoMessage(), action: 'questions_info' };
+  }
+
+  if (command.type === 'procedures_info') {
+    clearWhatsAppSession(sender.phoneNumber);
+    return { replyText: buildProceduresInfoMessage(), action: 'procedures_info' };
+  }
+
   if (command.type === 'human_handoff') {
     saveWhatsAppSession(sender.phoneNumber, 'human_handoff', { source: 'meta' });
     return { replyText: buildHumanHandoffMessage(), action: 'human_handoff' };
@@ -2879,11 +2982,14 @@ async function processIncomingWhatsAppMessage({
     };
   }
 
-  const command = parseWhatsAppCommand(text);
+  let command = parseWhatsAppCommand(text);
   let activeSession = getWhatsAppSession(sender.phoneNumber);
   if (activeSession && isSessionExpired(activeSession)) {
     clearWhatsAppSession(sender.phoneNumber);
     activeSession = null;
+  }
+  if (!activeSession && command.type === 'help') {
+    command = resolveMainMenuChoice(text) || command;
   }
 
   logWhatsAppEvent({
