@@ -1537,16 +1537,17 @@ function parseWhatsAppCommand(text) {
     .toLowerCase();
 
   if (!rawText) return { type: 'help' };
-  if (/^(ajuda|menu|oi|ola|help)\b/.test(normalizedText)) return { type: 'help' };
+  if (/^(ajuda|menu|oi|ola|bom dia|boa tarde|boa noite|help)\b/.test(normalizedText)) return { type: 'help' };
   if (/(^|\b)(atendente|humano|falar com atendente|falar com pessoa)\b/.test(normalizedText)) return { type: 'human_handoff' };
   if (/(^|\b)(datas|datas liberadas|ver datas|listar datas)\b/.test(normalizedText)) return { type: 'list_dates' };
-  if (/(^|\b)(valor|valores|preco|precos|quanto custa|orcamento)\b/.test(normalizedText)) return { type: 'pricing_info' };
-  if (/(^|\b)(duvida|duvidas|perguntas|bariatrica|cirurgia bariatrica)\b/.test(normalizedText)) return { type: 'questions_info' };
-  if (/(^|\b)(exames|procedimentos|endoscopia|colonoscopia|cirurgia geral)\b/.test(normalizedText)) return { type: 'procedures_info' };
+  if (/(^|\b)(endereco|localizacao|horario|funcionamento|onde fica)\b/.test(normalizedText)) return { type: 'clinic_info' };
+  if (/(^|\b)(exame|exames|endoscopia|colonoscopia)\b/.test(normalizedText)) return { type: 'exam_pre_schedule' };
+  if (/(^|\b)(cirurgia|cirurgias|orcamento de cirurgia|orcamentos de cirurgias)\b/.test(normalizedText)) return { type: 'surgery_info' };
+  if (/(^|\b)(valor|valores|preco|precos|quanto custa)\b/.test(normalizedText)) return { type: 'pricing_info' };
 
   const fields = parseStructuredWhatsAppFields(rawText);
 
-  if (/^agendar\b/.test(normalizedText)) return { type: 'create_appointment', fields };
+  if (/^agendar\b/.test(normalizedText)) return { type: 'consult_pre_schedule', fields };
   if (/^remarcar\b/.test(normalizedText)) return { type: 'reschedule_appointment', fields };
   if (/^cancelar\b/.test(normalizedText)) return { type: 'cancel_appointment', fields };
   if (/^status\b/.test(normalizedText)) return { type: 'appointment_status', fields };
@@ -1562,16 +1563,16 @@ function resolveMainMenuChoice(text) {
     .toLowerCase();
 
   if (/^(1|marcar consulta|marcar|consulta|agendar consulta|agendar)$/.test(normalizedText)) {
-    return { type: 'create_appointment', fields: {} };
+    return { type: 'consult_pre_schedule', fields: {} };
   }
-  if (/^(2|valores|valor|precos|preco|ver valores|orcamento)$/.test(normalizedText)) {
+  if (/^(2|agendar exame|agendar exames|exame|exames|endoscopia|colonoscopia)$/.test(normalizedText)) {
+    return { type: 'exam_pre_schedule', fields: {} };
+  }
+  if (/^(3|valores|valor|precos|preco|ver valores)$/.test(normalizedText)) {
     return { type: 'pricing_info', fields: {} };
   }
-  if (/^(3|duvidas|duvida|tirar duvidas|perguntas)$/.test(normalizedText)) {
-    return { type: 'questions_info', fields: {} };
-  }
-  if (/^(4|exames|procedimentos|endoscopia|colonoscopia|cirurgias)$/.test(normalizedText)) {
-    return { type: 'procedures_info', fields: {} };
+  if (/^(4|cirurgia|cirurgias|orcamento|orcamentos|orcamento de cirurgia|orcamentos de cirurgias)$/.test(normalizedText)) {
+    return { type: 'surgery_info', fields: {} };
   }
   if (/^(5|atendente|humano|falar com atendente|falar com pessoa)$/.test(normalizedText)) {
     return { type: 'human_handoff', fields: {} };
@@ -1804,66 +1805,110 @@ function buildProfessionalHelpMessage() {
   return [
     'WR Gastro',
     '',
-    'Ola. Sou o assistente virtual da WR Gastro.',
-    'Escolha uma opcao para continuar:',
+    'Ola, seja bem-vindo a WR Gastro.',
+    '',
+    'Como podemos ajudar?',
     '',
     '1. Marcar consulta',
-    '2. Ver valores',
-    '3. Cirurgia bariatrica',
-    '4. Endoscopia, colonoscopia e outros procedimentos',
+    '2. Agendar exames',
+    '3. Ver valores de consultas e exames',
+    '4. Ver orcamentos de cirurgias',
     '5. Falar com atendente',
-    '',
-    'Voce tambem pode escrever: AGENDAR, VALORES, DUVIDAS ou ATENDENTE.',
-    '',
-    'Para consultar um agendamento existente, envie:',
-    'STATUS',
-    'CPF: 12345678901',
-    'DATA: 2026-04-12',
   ].join('\n');
 }
 
 function buildPricingInfoMessage() {
   return [
-    'WR Gastro - Valores',
+    'Valores atualmente praticados:',
     '',
-    'Os valores podem variar conforme avaliacao medica, tipo de consulta, exame, procedimento, hospital, convenio e forma de pagamento.',
+    'Consulta Gastroenterologica',
+    'R$ 450,00',
     '',
-    'Para te orientar com seguranca, posso seguir por dois caminhos:',
-    '1. Marcar uma avaliacao',
-    '5. Falar com atendente para confirmar valores',
+    'Endoscopia',
+    'R$ 550,00',
     '',
-    'Responda 1 para marcar consulta ou 5 para falar com a equipe.',
-  ].join('\n');
-}
-
-function buildQuestionsInfoMessage() {
-  return [
-    'WR Gastro - Cirurgia bariatrica',
+    'Colonoscopia',
+    'R$ 1.000,00',
     '',
-    'A cirurgia bariatrica exige avaliacao individual, indicacao medica e acompanhamento adequado antes e depois do procedimento.',
+    'Formas de pagamento:',
+    '- Pix',
+    '- Especie',
+    '- Cartao de Debito',
+    '- Cartao de Credito',
     '',
-    'A WR Gastro pode orientar sobre consulta, avaliacao, preparo, exames necessarios e encaminhamento para a equipe.',
+    'Convenios aceitos:',
+    '- Aura Saude',
+    '- Geap',
+    '- Fusex',
+    '- Humana (somente exames)',
     '',
-    'Escolha uma opcao:',
-    '1. Marcar consulta',
-    '2. Ver valores',
+    'Deseja:',
+    '1. Agendar consulta',
+    '2. Agendar exame',
     '5. Falar com atendente',
   ].join('\n');
 }
 
-function buildProceduresInfoMessage() {
+function buildSurgeryInfoMessage() {
   return [
-    'WR Gastro - Exames e procedimentos',
+    'A WR Gastro realiza diversos procedimentos cirurgicos e gastroenterologicos.',
     '',
-    'A clinica atende demandas relacionadas a:',
-    '- Consulta especializada',
-    '- Cirurgia bariatrica',
-    '- Cirurgia geral e digestiva',
-    '- Endoscopia digestiva',
-    '- Colonoscopia',
+    'Os valores e orientacoes variam conforme cada caso.',
+    'Para receber um orcamento personalizado, nossa equipe realizara uma avaliacao inicial.',
     '',
-    'Para agendar, responda 1.',
-    'Para tirar duvidas com a equipe, responda 5.',
+    'Deseja:',
+    '1. Solicitar orcamento',
+    '2. Falar com atendente',
+  ].join('\n');
+}
+
+function buildClinicInfoMessage() {
+  return [
+    'WR Gastro',
+    '',
+    'Endereco:',
+    'Rua Urbano Santos, 1160',
+    'Jucara',
+    'Imperatriz - MA',
+    '',
+    'Horario de atendimento:',
+    'Segunda a Sexta: 07:00 as 18:00',
+    'Sabado: 07:00 as 12:00',
+    'Domingo: Fechado',
+    '',
+    'Para falar com a equipe, responda 5.',
+  ].join('\n');
+}
+
+function buildConsultPreScheduleStartMessage() {
+  return [
+    'Agendar consulta',
+    '',
+    'Vou coletar seus dados para pre-agendamento.',
+    'A consulta nao sera confirmada automaticamente. A equipe da WR Gastro ira validar a disponibilidade e retornar por aqui.',
+    '',
+    'Para comecar, envie o nome completo do paciente.',
+  ].join('\n');
+}
+
+function buildExamPreScheduleStartMessage() {
+  return [
+    'Agendar exames',
+    '',
+    'Vou coletar seus dados para pre-agendamento do exame.',
+    'O exame nao sera confirmado automaticamente. A equipe da WR Gastro ira validar a disponibilidade e retornar por aqui.',
+    '',
+    'Para comecar, envie o nome completo do paciente.',
+  ].join('\n');
+}
+
+function buildSurgeryQuoteStartMessage() {
+  return [
+    'Orcamento de cirurgia',
+    '',
+    'Vou coletar algumas informacoes para a equipe da WR Gastro avaliar seu caso.',
+    '',
+    'Para comecar, envie o nome completo do paciente.',
   ].join('\n');
 }
 
@@ -2083,15 +2128,34 @@ function buildPatientReminderText(appointment, reminderLabel) {
 
 function buildHumanHandoffMessage() {
   return [
-    'Perfeito. Vou encerrar o fluxo automatico por aqui.',
-    'Nossa equipe humana pode continuar o atendimento por este mesmo numero assim que assumir a conversa.',
+    'Certo.',
     '',
-    'Se quiser voltar ao autoatendimento, envie MENU ou AGENDAR.',
+    'Vou encaminhar seu atendimento para a equipe da WR Gastro.',
+    'Em breve um de nossos atendentes continuara seu atendimento por aqui.',
   ].join('\n');
 }
 
 function buildSessionResumeMessage(session) {
   const stepLabels = {
+    consult_full_name: 'nome completo',
+    consult_phone: 'telefone',
+    consult_insurance: 'convenio ou particular',
+    consult_procedure: 'tipo de atendimento/procedimento',
+    consult_preferred_date: 'melhor data',
+    consult_preferred_time: 'melhor horario',
+    consult_notes: 'observacoes',
+    exam_full_name: 'nome completo',
+    exam_phone: 'telefone',
+    exam_name: 'exame desejado',
+    exam_insurance: 'convenio ou particular',
+    exam_preferred_date: 'melhor data',
+    exam_preferred_time: 'melhor horario',
+    exam_notes: 'observacoes',
+    surgery_menu: 'escolha entre orcamento ou atendente',
+    surgery_quote_full_name: 'nome completo',
+    surgery_quote_phone: 'telefone',
+    surgery_quote_procedure: 'procedimento desejado',
+    surgery_quote_notes: 'observacoes',
     name: 'nome completo',
     cpf: 'CPF',
     address: 'endereco completo',
@@ -2111,6 +2175,60 @@ function buildSessionResumeMessage(session) {
     'Retomei seu atendimento de onde paramos.',
     `Falta apenas: ${stepLabels[session?.step] || 'concluir o atendimento'}.`,
     'Pode continuar me respondendo por aqui.',
+  ].join('\n');
+}
+
+function normalizeOptionalNote(value) {
+  const normalized = normalizeCommandKey(value);
+  return normalized === 'pular' || normalized === 'nao' || normalized === 'nenhuma' ? '' : String(value || '').trim();
+}
+
+function recordWhatsAppLead(sender, lead) {
+  const leadId = `whatsapp-lead-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const details = {
+    leadId,
+    source: 'whatsapp',
+    lead,
+  };
+
+  logWhatsAppEvent({
+    direction: 'internal',
+    phoneNumber: sender.phoneNumber,
+    profileName: sender.profileName,
+    messageType: 'lead',
+    messageText: `${lead.typeLabel || 'Atendimento'} - ${lead.fullName || 'Paciente sem nome'}`,
+    status: 'pending_human_confirmation',
+    details,
+  });
+
+  writeAuditLog(
+    { id: 'whatsapp-bot', displayName: 'WhatsApp', role: 'system' },
+    lead.type || 'whatsapp_lead',
+    'whatsapp_lead',
+    leadId,
+    details
+  );
+
+  return leadId;
+}
+
+function buildPreScheduleCompleteMessage() {
+  return [
+    'Seu pre-agendamento foi recebido com sucesso.',
+    '',
+    'A equipe da WR Gastro ira verificar a disponibilidade e retornara por aqui para confirmacao.',
+    '',
+    buildHumanHandoffMessage(),
+  ].join('\n');
+}
+
+function buildSurgeryQuoteCompleteMessage() {
+  return [
+    'Sua solicitacao de orcamento foi recebida com sucesso.',
+    '',
+    'A equipe da WR Gastro ira avaliar as informacoes e retornara por aqui.',
+    '',
+    buildHumanHandoffMessage(),
   ].join('\n');
 }
 
@@ -2390,14 +2508,9 @@ function executeWhatsAppCommand(command, sender) {
     return { replyText: buildPricingInfoMessage(), action: 'pricing_info' };
   }
 
-  if (command.type === 'questions_info') {
+  if (command.type === 'clinic_info') {
     clearWhatsAppSession(sender.phoneNumber);
-    return { replyText: buildQuestionsInfoMessage(), action: 'questions_info' };
-  }
-
-  if (command.type === 'procedures_info') {
-    clearWhatsAppSession(sender.phoneNumber);
-    return { replyText: buildProceduresInfoMessage(), action: 'procedures_info' };
+    return { replyText: buildClinicInfoMessage(), action: 'clinic_info' };
   }
 
   if (command.type === 'list_dates') {
@@ -2500,18 +2613,10 @@ function executeEnhancedGuidedWhatsAppFlow(session, text, sender) {
   const datesWithFreeSlots = getDatesWithFreeSlots(schedule);
   const draft = { ...(session?.draft || {}) };
 
-  if (!datesWithFreeSlots.length && !String(session?.step || '').startsWith('human_')) {
-    clearWhatsAppSession(sender.phoneNumber);
-    return {
-      replyText: 'No momento nao existem horarios liberados. Se preferir, envie ATENDENTE para falar com a equipe.',
-      action: 'guided_no_dates',
-    };
-  }
-
   if (normalizedMessage === 'cancelarfluxo') {
     clearWhatsAppSession(sender.phoneNumber);
     return {
-      replyText: 'Fluxo cancelado com sucesso. Quando quiser retomar, envie AGENDAR ou MENU.',
+      replyText: 'Fluxo cancelado com sucesso. Quando quiser retomar, envie MENU.',
       action: 'guided_cancelled',
     };
   }
@@ -2520,6 +2625,206 @@ function executeEnhancedGuidedWhatsAppFlow(session, text, sender) {
     return {
       replyText: buildHumanHandoffMessage(),
       action: 'human_handoff_waiting',
+    };
+  }
+
+  if (session.step === 'surgery_menu') {
+    if (normalizedMessage === '1' || normalizedMessage.includes('orcamento')) {
+      saveWhatsAppSession(sender.phoneNumber, 'surgery_quote_full_name', { source: draft.source || 'meta' });
+      return { replyText: buildSurgeryQuoteStartMessage(), action: 'surgery_quote_start' };
+    }
+    if (normalizedMessage === '2' || normalizedMessage === '5' || normalizedMessage.includes('atendente')) {
+      saveWhatsAppSession(sender.phoneNumber, 'human_handoff', { source: draft.source || 'meta' });
+      return { replyText: buildHumanHandoffMessage(), action: 'human_handoff' };
+    }
+    return { replyText: buildSurgeryInfoMessage(), action: 'surgery_info_retry' };
+  }
+
+  if (session.step === 'consult_full_name') {
+    if (message.length < 5) {
+      return { replyText: 'Para seguir, envie o nome completo do paciente.', action: 'consult_retry_name' };
+    }
+    draft.type = 'consult_pre_schedule';
+    draft.typeLabel = 'Pre-agendamento de consulta';
+    draft.fullName = message;
+    draft.contactPhone = sender.phoneNumber;
+    saveWhatsAppSession(sender.phoneNumber, 'consult_phone', draft);
+    return { replyText: 'Agora envie o telefone para contato.', action: 'consult_collect_phone' };
+  }
+
+  if (session.step === 'consult_phone') {
+    const phone = normalizePhoneNumber(message);
+    if (phone.length < 10) {
+      return { replyText: 'Envie um telefone valido com DDD.', action: 'consult_retry_phone' };
+    }
+    draft.phone = phone;
+    saveWhatsAppSession(sender.phoneNumber, 'consult_insurance', draft);
+    return { replyText: 'O atendimento sera por convenio ou particular?', action: 'consult_collect_insurance' };
+  }
+
+  if (session.step === 'consult_insurance') {
+    if (message.length < 3) {
+      return { replyText: 'Informe se sera por convenio ou particular.', action: 'consult_retry_insurance' };
+    }
+    draft.insurance = message;
+    saveWhatsAppSession(sender.phoneNumber, 'consult_procedure', draft);
+    return { replyText: 'Qual o tipo de atendimento ou procedimento desejado?', action: 'consult_collect_procedure' };
+  }
+
+  if (session.step === 'consult_procedure') {
+    if (message.length < 3) {
+      return { replyText: 'Informe o tipo de atendimento ou procedimento desejado.', action: 'consult_retry_procedure' };
+    }
+    draft.procedureName = message;
+    saveWhatsAppSession(sender.phoneNumber, 'consult_preferred_date', draft);
+    return { replyText: 'Qual a melhor data para atendimento?', action: 'consult_collect_preferred_date' };
+  }
+
+  if (session.step === 'consult_preferred_date') {
+    if (message.length < 2) {
+      return { replyText: 'Informe a melhor data para atendimento.', action: 'consult_retry_preferred_date' };
+    }
+    draft.preferredDate = message;
+    saveWhatsAppSession(sender.phoneNumber, 'consult_preferred_time', draft);
+    return { replyText: 'Qual o melhor horario?', action: 'consult_collect_preferred_time' };
+  }
+
+  if (session.step === 'consult_preferred_time') {
+    if (message.length < 2) {
+      return { replyText: 'Informe o melhor horario.', action: 'consult_retry_preferred_time' };
+    }
+    draft.preferredTime = message;
+    saveWhatsAppSession(sender.phoneNumber, 'consult_notes', draft);
+    return { replyText: 'Deseja adicionar alguma observacao? Se nao, responda PULAR.', action: 'consult_collect_notes' };
+  }
+
+  if (session.step === 'consult_notes') {
+    draft.notes = normalizeOptionalNote(message);
+    draft.leadId = recordWhatsAppLead(sender, draft);
+    saveWhatsAppSession(sender.phoneNumber, 'human_handoff', { source: draft.source || 'meta', leadId: draft.leadId });
+    return {
+      replyText: buildPreScheduleCompleteMessage(),
+      action: 'consult_pre_schedule_complete',
+      lead: draft,
+    };
+  }
+
+  if (session.step === 'exam_full_name') {
+    if (message.length < 5) {
+      return { replyText: 'Para seguir, envie o nome completo do paciente.', action: 'exam_retry_name' };
+    }
+    draft.type = 'exam_pre_schedule';
+    draft.typeLabel = 'Pre-agendamento de exame';
+    draft.fullName = message;
+    draft.contactPhone = sender.phoneNumber;
+    saveWhatsAppSession(sender.phoneNumber, 'exam_phone', draft);
+    return { replyText: 'Agora envie o telefone para contato.', action: 'exam_collect_phone' };
+  }
+
+  if (session.step === 'exam_phone') {
+    const phone = normalizePhoneNumber(message);
+    if (phone.length < 10) {
+      return { replyText: 'Envie um telefone valido com DDD.', action: 'exam_retry_phone' };
+    }
+    draft.phone = phone;
+    saveWhatsAppSession(sender.phoneNumber, 'exam_name', draft);
+    return { replyText: 'Qual exame deseja agendar?', action: 'exam_collect_name' };
+  }
+
+  if (session.step === 'exam_name') {
+    if (message.length < 3) {
+      return { replyText: 'Informe o exame desejado.', action: 'exam_retry_name_field' };
+    }
+    draft.examName = message;
+    saveWhatsAppSession(sender.phoneNumber, 'exam_insurance', draft);
+    return { replyText: 'O exame sera por convenio ou particular?', action: 'exam_collect_insurance' };
+  }
+
+  if (session.step === 'exam_insurance') {
+    if (message.length < 3) {
+      return { replyText: 'Informe se sera por convenio ou particular.', action: 'exam_retry_insurance' };
+    }
+    draft.insurance = message;
+    saveWhatsAppSession(sender.phoneNumber, 'exam_preferred_date', draft);
+    return { replyText: 'Qual a melhor data para o exame?', action: 'exam_collect_preferred_date' };
+  }
+
+  if (session.step === 'exam_preferred_date') {
+    if (message.length < 2) {
+      return { replyText: 'Informe a melhor data para o exame.', action: 'exam_retry_preferred_date' };
+    }
+    draft.preferredDate = message;
+    saveWhatsAppSession(sender.phoneNumber, 'exam_preferred_time', draft);
+    return { replyText: 'Qual o melhor horario?', action: 'exam_collect_preferred_time' };
+  }
+
+  if (session.step === 'exam_preferred_time') {
+    if (message.length < 2) {
+      return { replyText: 'Informe o melhor horario.', action: 'exam_retry_preferred_time' };
+    }
+    draft.preferredTime = message;
+    saveWhatsAppSession(sender.phoneNumber, 'exam_notes', draft);
+    return { replyText: 'Deseja adicionar alguma observacao? Se nao, responda PULAR.', action: 'exam_collect_notes' };
+  }
+
+  if (session.step === 'exam_notes') {
+    draft.notes = normalizeOptionalNote(message);
+    draft.leadId = recordWhatsAppLead(sender, draft);
+    saveWhatsAppSession(sender.phoneNumber, 'human_handoff', { source: draft.source || 'meta', leadId: draft.leadId });
+    return {
+      replyText: buildPreScheduleCompleteMessage(),
+      action: 'exam_pre_schedule_complete',
+      lead: draft,
+    };
+  }
+
+  if (session.step === 'surgery_quote_full_name') {
+    if (message.length < 5) {
+      return { replyText: 'Para seguir, envie o nome completo do paciente.', action: 'surgery_quote_retry_name' };
+    }
+    draft.type = 'surgery_quote';
+    draft.typeLabel = 'Orcamento de cirurgia';
+    draft.fullName = message;
+    draft.contactPhone = sender.phoneNumber;
+    saveWhatsAppSession(sender.phoneNumber, 'surgery_quote_phone', draft);
+    return { replyText: 'Agora envie o telefone para contato.', action: 'surgery_quote_collect_phone' };
+  }
+
+  if (session.step === 'surgery_quote_phone') {
+    const phone = normalizePhoneNumber(message);
+    if (phone.length < 10) {
+      return { replyText: 'Envie um telefone valido com DDD.', action: 'surgery_quote_retry_phone' };
+    }
+    draft.phone = phone;
+    saveWhatsAppSession(sender.phoneNumber, 'surgery_quote_procedure', draft);
+    return { replyText: 'Qual procedimento desejado?', action: 'surgery_quote_collect_procedure' };
+  }
+
+  if (session.step === 'surgery_quote_procedure') {
+    if (message.length < 3) {
+      return { replyText: 'Informe o procedimento desejado.', action: 'surgery_quote_retry_procedure' };
+    }
+    draft.procedureName = message;
+    saveWhatsAppSession(sender.phoneNumber, 'surgery_quote_notes', draft);
+    return { replyText: 'Envie observacoes importantes para a equipe. Se nao houver, responda PULAR.', action: 'surgery_quote_collect_notes' };
+  }
+
+  if (session.step === 'surgery_quote_notes') {
+    draft.notes = normalizeOptionalNote(message);
+    draft.leadId = recordWhatsAppLead(sender, draft);
+    saveWhatsAppSession(sender.phoneNumber, 'human_handoff', { source: draft.source || 'meta', leadId: draft.leadId });
+    return {
+      replyText: buildSurgeryQuoteCompleteMessage(),
+      action: 'surgery_quote_complete',
+      lead: draft,
+    };
+  }
+
+  if (!datesWithFreeSlots.length && !String(session?.step || '').startsWith('human_')) {
+    clearWhatsAppSession(sender.phoneNumber);
+    return {
+      replyText: 'No momento nao existem horarios liberados. Se preferir, envie ATENDENTE para falar com a equipe.',
+      action: 'guided_no_dates',
     };
   }
 
@@ -2797,19 +3102,29 @@ function executeEnhancedWhatsAppCommand(command, sender) {
     return { replyText: buildProfessionalHelpMessage(), action: 'help' };
   }
 
+  if (command.type === 'consult_pre_schedule') {
+    saveWhatsAppSession(sender.phoneNumber, 'consult_full_name', { source: 'meta' });
+    return { replyText: buildConsultPreScheduleStartMessage(), action: 'consult_pre_schedule_start' };
+  }
+
+  if (command.type === 'exam_pre_schedule') {
+    saveWhatsAppSession(sender.phoneNumber, 'exam_full_name', { source: 'meta' });
+    return { replyText: buildExamPreScheduleStartMessage(), action: 'exam_pre_schedule_start' };
+  }
+
   if (command.type === 'pricing_info') {
     clearWhatsAppSession(sender.phoneNumber);
     return { replyText: buildPricingInfoMessage(), action: 'pricing_info' };
   }
 
-  if (command.type === 'questions_info') {
+  if (command.type === 'clinic_info') {
     clearWhatsAppSession(sender.phoneNumber);
-    return { replyText: buildQuestionsInfoMessage(), action: 'questions_info' };
+    return { replyText: buildClinicInfoMessage(), action: 'clinic_info' };
   }
 
-  if (command.type === 'procedures_info') {
-    clearWhatsAppSession(sender.phoneNumber);
-    return { replyText: buildProceduresInfoMessage(), action: 'procedures_info' };
+  if (command.type === 'surgery_info') {
+    saveWhatsAppSession(sender.phoneNumber, 'surgery_menu', { source: 'meta' });
+    return { replyText: buildSurgeryInfoMessage(), action: 'surgery_info' };
   }
 
   if (command.type === 'human_handoff') {
@@ -3005,7 +3320,7 @@ async function processIncomingWhatsAppMessage({
 
   let outcome;
   try {
-    if (activeSession && command.type === 'help' && !/^(ajuda|menu|oi|ola|help)\b/i.test(String(text || '').trim())) {
+    if (activeSession && !/^(ajuda|menu|oi|ola|bom dia|boa tarde|boa noite|help)\b/i.test(String(text || '').trim())) {
       outcome = executeEnhancedGuidedWhatsAppFlow(activeSession, text, sender);
       if (getMinutesSince(activeSession.updatedAt) >= WHATSAPP_SESSION_NUDGE_MINUTES) {
         outcome.replyText = `${buildSessionResumeMessage(activeSession)}\n\n${outcome.replyText}`;
@@ -3013,11 +3328,11 @@ async function processIncomingWhatsAppMessage({
     } else if (activeSession && command.type === 'help') {
       clearWhatsAppSession(sender.phoneNumber);
       outcome = executeEnhancedWhatsAppCommand(command, sender);
-    } else if (isGuidedScheduleTrigger(text) && command.type !== 'create_appointment') {
-      saveWhatsAppSession(sender.phoneNumber, 'name', { source });
+    } else if (isGuidedScheduleTrigger(text) && command.type !== 'consult_pre_schedule') {
+      saveWhatsAppSession(sender.phoneNumber, 'consult_full_name', { source });
       outcome = {
-        replyText: buildProfessionalGuidedStartMessage(),
-        action: 'guided_start',
+        replyText: buildConsultPreScheduleStartMessage(),
+        action: 'consult_pre_schedule_start',
       };
     } else if (command.type === 'reschedule_appointment' && !resolveCommandField(command.fields || {}, ['cpf'])) {
       saveWhatsAppSession(sender.phoneNumber, 'reschedule_cpf', { source });
