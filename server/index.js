@@ -1230,6 +1230,7 @@ function buildSystemCheckReport(auth) {
         phoneNumberIdConfigured: Boolean(status?.phoneNumberIdConfigured),
         appSecretConfigured: Boolean(status?.appSecretConfigured),
         doctorPhoneConfigured: Boolean(status?.doctorPhoneConfigured),
+        responsiblePhoneConfigured: Boolean(status?.responsiblePhoneConfigured),
         doctorTemplateConfigured: Boolean(status?.doctorTemplateConfigured),
         readyForInboundMessages: Boolean(status?.readiness?.readyForInboundMessages),
         readyForDoctorAutomation: Boolean(status?.readiness?.readyForDoctorAutomation),
@@ -1549,6 +1550,7 @@ function buildWhatsAppReadiness(req) {
 
 function getWhatsAppStatus(req) {
   const readiness = buildWhatsAppReadiness(req);
+  const responsible = getWhatsAppResponsibleConfig();
   const temporaryQr = temporaryWhatsAppQrBot?.getStatus
     ? temporaryWhatsAppQrBot.getStatus()
     : { ...temporaryWhatsAppQrStatus };
@@ -1560,8 +1562,10 @@ function getWhatsAppStatus(req) {
     phoneNumberIdConfigured: Boolean(WHATSAPP_PHONE_NUMBER_ID),
     appSecretConfigured: Boolean(WHATSAPP_APP_SECRET),
     doctorPhoneConfigured: Boolean(WHATSAPP_DOCTOR_PHONE),
-    responsiblePhoneConfigured: Boolean(WHATSAPP_RESPONSIBLE_PHONE),
-    responsibleName: WHATSAPP_RESPONSIBLE_NAME,
+    responsiblePhoneConfigured: Boolean(responsible.phone),
+    responsibleName: responsible.name,
+    responsiblePhone: responsible.phone,
+    responsibleSource: responsible.source,
     doctorTemplateConfigured: Boolean(WHATSAPP_DOCTOR_TEMPLATE_NAME),
     doctorFallbackTextEnabled: WHATSAPP_DOCTOR_FALLBACK_TEXT_ENABLED,
     patientReminderTemplateConfigured: Boolean(WHATSAPP_PATIENT_REMINDER_TEMPLATE_NAME),
@@ -1574,6 +1578,31 @@ function getWhatsAppStatus(req) {
     recentEvents: getRecentWhatsAppEvents(25),
     readiness,
   };
+}
+
+function getWhatsAppResponsibleConfig() {
+  const saved = getSettingJson('whatsapp_responsible', {});
+  const savedPhone = normalizePhoneNumber(saved.phone || saved.phoneNumber || '');
+  const fallbackPhone = normalizePhoneNumber(WHATSAPP_RESPONSIBLE_PHONE);
+  return {
+    name: String(saved.name || WHATSAPP_RESPONSIBLE_NAME || '').trim(),
+    phone: savedPhone || fallbackPhone,
+    source: savedPhone ? 'panel' : (fallbackPhone ? 'env' : ''),
+  };
+}
+
+function saveWhatsAppResponsibleConfig(input = {}) {
+  const name = String(input.name || '').trim();
+  const phone = normalizePhoneNumber(input.phone || input.phoneNumber || '');
+  if (!phone || phone.length < 10) {
+    const error = new Error('Informe um WhatsApp valido para o responsavel, com DDD.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const config = { name, phone };
+  saveSettingJson('whatsapp_responsible', config);
+  return getWhatsAppResponsibleConfig();
 }
 
 function normalizeCommandKey(key) {
@@ -2099,6 +2128,7 @@ function buildDoctorRescheduleSummary(appointment, previousDate, previousTime) {
 }
 
 function buildResponsibleLeadSummary(sender, lead = {}) {
+  const responsible = getWhatsAppResponsibleConfig();
   const typeLabel = lead.typeLabel || 'Atendimento pelo WhatsApp';
   const patientName = lead.fullName || sender.profileName || 'Paciente sem nome informado';
   const contactPhone = normalizePhoneNumber(lead.phone || lead.contactPhone || sender.phoneNumber);
@@ -2111,7 +2141,7 @@ function buildResponsibleLeadSummary(sender, lead = {}) {
   return [
     'Cliente aguardando atendimento',
     '',
-    `Responsavel: ${WHATSAPP_RESPONSIBLE_NAME || 'Responsavel configurado'}`,
+    `Responsavel: ${responsible.name || 'Responsavel configurado'}`,
     `Tipo: ${typeLabel}`,
     `Paciente: ${patientName}`,
     `WhatsApp: ${contactPhone || 'Nao informado'}`,
@@ -2126,10 +2156,11 @@ function buildResponsibleLeadSummary(sender, lead = {}) {
 }
 
 function buildResponsibleAppointmentSummary(appointment) {
+  const responsible = getWhatsAppResponsibleConfig();
   return [
     'Novo agendamento confirmado pelo WhatsApp',
     '',
-    `Responsavel: ${WHATSAPP_RESPONSIBLE_NAME || 'Responsavel configurado'}`,
+    `Responsavel: ${responsible.name || 'Responsavel configurado'}`,
     `Paciente: ${appointment.fullName}`,
     `WhatsApp: ${appointment.contactPhone || 'Nao informado'}`,
     `Data: ${appointment.date}`,
@@ -2143,7 +2174,7 @@ function buildResponsibleAppointmentSummary(appointment) {
 }
 
 async function notifyResponsibleAboutLead(sender, lead = {}) {
-  const responsiblePhone = normalizePhoneNumber(WHATSAPP_RESPONSIBLE_PHONE);
+  const responsiblePhone = getWhatsAppResponsibleConfig().phone;
   if (!responsiblePhone) {
     return { sent: false, skipped: true, reason: 'responsible_not_configured' };
   }
@@ -2197,8 +2228,23 @@ async function notifyResponsibleAboutLead(sender, lead = {}) {
   }
 }
 
+function getSettingJson(key, fallback = {}) {
+  const row = db.prepare('SELECT value FROM settings WHERE key = ?').get(key);
+  return parseJson(row?.value, fallback);
+}
+
+function saveSettingJson(key, value) {
+  db.prepare(`
+    INSERT INTO settings (key, value, updated_at)
+    VALUES (?, ?, ?)
+    ON CONFLICT(key) DO UPDATE SET
+      value = excluded.value,
+      updated_at = excluded.updated_at
+  `).run(key, JSON.stringify(value || {}), nowIso());
+}
+
 async function notifyResponsibleAboutAppointment(appointment) {
-  const responsiblePhone = normalizePhoneNumber(WHATSAPP_RESPONSIBLE_PHONE);
+  const responsiblePhone = getWhatsAppResponsibleConfig().phone;
   if (!responsiblePhone || !appointment) {
     return { sent: false, skipped: true, reason: 'responsible_not_configured' };
   }
@@ -4138,6 +4184,19 @@ app.get('/api/admin/integrations/whatsapp', authRequired, adminRequired, (req, r
   res.json(getWhatsAppStatus(req));
 });
 
+app.put('/api/admin/integrations/whatsapp/responsible', authRequired, adminRequired, (req, res) => {
+  try {
+    const responsible = saveWhatsAppResponsibleConfig(req.body || {});
+    writeAuditLog(req.auth, 'update_whatsapp_responsible', 'whatsapp', 'responsible', {
+      name: responsible.name,
+      phoneConfigured: Boolean(responsible.phone),
+    });
+    return res.json({ ok: true, responsible, status: getWhatsAppStatus(req) });
+  } catch (error) {
+    return res.status(error.statusCode || 500).json({ error: error.message || 'Falha ao salvar responsavel do WhatsApp.' });
+  }
+});
+
 app.get('/api/admin/backup', authRequired, adminRequired, (_req, res) => {
   const snapshot = buildBackupSnapshot();
   res.setHeader('Content-Type', 'application/json');
@@ -4361,6 +4420,45 @@ app.post('/api/admin/whatsapp/test-message', authRequired, adminRequired, async 
   } catch (error) {
     return res.status(error.statusCode || 500).json({
       error: error.message || 'Falha ao enviar teste do WhatsApp.',
+      details: error.payload || null,
+    });
+  }
+});
+
+app.post('/api/admin/whatsapp/test-responsible-notification', authRequired, adminRequired, async (req, res) => {
+  const sender = {
+    phoneNumber: normalizePhoneNumber(req.body?.patientPhone || '5599999999999'),
+    profileName: String(req.body?.patientName || 'Paciente de Teste').trim(),
+    source: 'admin_test',
+  };
+  const lead = {
+    leadId: `responsible-test-${Date.now()}`,
+    type: req.body?.type || 'human_handoff',
+    typeLabel: req.body?.typeLabel || 'Cliente quer falar com atendente',
+    fullName: req.body?.patientName || 'Paciente de Teste',
+    contactPhone: sender.phoneNumber,
+    procedureName: req.body?.procedureName || 'Endoscopia',
+    preferredDate: req.body?.preferredDate || 'Nao informada',
+    preferredTime: req.body?.preferredTime || 'Nao informado',
+    notes: req.body?.notes || 'Teste enviado pelo painel administrativo.',
+    insurance: req.body?.insurance || 'Nao informado',
+  };
+
+  try {
+    const result = await notifyResponsibleAboutLead(sender, lead);
+    if (result.error) {
+      return res.status(result.error.statusCode || 500).json({
+        ok: false,
+        error: result.error.message || 'Falha ao enviar notificacao ao responsavel.',
+        details: result.error.payload || null,
+      });
+    }
+
+    return res.json({ ok: true, result, status: getWhatsAppStatus(req) });
+  } catch (error) {
+    return res.status(error.statusCode || 500).json({
+      ok: false,
+      error: error.message || 'Falha ao testar notificacao do responsavel.',
       details: error.payload || null,
     });
   }

@@ -523,6 +523,8 @@ export default function AdminPanel() {
     downloadBackup,
     simulateWhatsAppInbound,
     sendWhatsAppTestMessage,
+    updateWhatsAppResponsible,
+    testResponsibleWhatsAppNotification,
     testDoctorWhatsAppNotification,
     runSystemCheck,
     refreshPatientHistory,
@@ -546,6 +548,10 @@ export default function AdminPanel() {
   const [whatsAppOutboundForm, setWhatsAppOutboundForm] = useState({
     to: '5599999999999',
     text: 'Mensagem de teste enviada pelo painel.',
+  });
+  const [whatsAppResponsibleForm, setWhatsAppResponsibleForm] = useState({
+    name: '',
+    phone: '',
   });
   const [doctorNotificationForm, setDoctorNotificationForm] = useState({
     fullName: 'Paciente de Teste',
@@ -588,6 +594,13 @@ export default function AdminPanel() {
   useEffect(() => {
     setDraft(cloneContent(siteContent));
   }, [siteContent]);
+
+  useEffect(() => {
+    setWhatsAppResponsibleForm({
+      name: whatsAppStatus?.responsibleName || '',
+      phone: whatsAppStatus?.responsiblePhone || '',
+    });
+  }, [whatsAppStatus?.responsibleName, whatsAppStatus?.responsiblePhone]);
 
   useEffect(() => {
     const handleResize = () => setViewportWidth(window.innerWidth);
@@ -1475,6 +1488,35 @@ export default function AdminPanel() {
     }
   };
 
+  const handleSaveWhatsAppResponsible = async () => {
+    setBusyKey('whatsapp-responsible-save');
+    try {
+      await updateWhatsAppResponsible(whatsAppResponsibleForm);
+      flashNotice('success', 'Responsável salvo. Os avisos de atendimento já vão para esse número.');
+    } catch (error) {
+      flashNotice('error', error.message);
+    } finally {
+      setBusyKey('');
+    }
+  };
+
+  const handleTestResponsibleNotification = async () => {
+    setBusyKey('whatsapp-responsible-test');
+    try {
+      await testResponsibleWhatsAppNotification({
+        patientName: 'Paciente de Teste',
+        patientPhone: whatsAppSimulationForm.from,
+        procedureName: 'Endoscopia',
+        notes: 'Teste de resumo para responsável enviado pelo painel.',
+      });
+      flashNotice('success', 'Resumo de atendimento enviado para o responsável.');
+    } catch (error) {
+      flashNotice('error', error.message);
+    } finally {
+      setBusyKey('');
+    }
+  };
+
   const handleTestDoctorNotification = async () => {
     setBusyKey('whatsapp-doctor-test');
     try {
@@ -1586,6 +1628,30 @@ export default function AdminPanel() {
               <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                 <ActionButton onClick={handleRefreshPanel} disabled={busyKey === 'refresh'} stretch={isMobile}>{busyKey === 'refresh' ? 'Atualizando...' : 'Atualizar status'}</ActionButton>
                 <ActionButton onClick={handleRunSystemCheck} disabled={busyKey === 'system-check'} stretch={isMobile}>{busyKey === 'system-check' ? 'Testando sistema...' : 'Rodar check completo'}</ActionButton>
+              </div>
+            </div>
+
+            <div style={{ padding: '18px', borderRadius: '8px', background: 'rgba(9,26,36,0.92)', border: '1px solid rgba(21,171,209,0.16)', display: 'grid', gap: '14px' }}>
+              <div>
+                <strong style={{ display: 'block', fontSize: '18px', marginBottom: '6px' }}>Responsável pelos atendimentos</strong>
+                <p style={{ margin: 0, color: 'rgba(244,251,248,0.62)', lineHeight: 1.7 }}>
+                  Este número recebe os resumos quando o cliente pede atendente, quer pagar ou confirma um agendamento pelo WhatsApp.
+                </p>
+              </div>
+              <Row minWidth={isMobile ? 180 : 220}>
+                <Field label="Nome do responsável" value={whatsAppResponsibleForm.name} onChange={(value) => setWhatsAppResponsibleForm((previous) => ({ ...previous, name: value }))} />
+                <Field label="WhatsApp com DDI e DDD" value={whatsAppResponsibleForm.phone} onChange={(value) => setWhatsAppResponsibleForm((previous) => ({ ...previous, phone: value }))} placeholder="559887338179" />
+              </Row>
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                <ActionButton onClick={handleSaveWhatsAppResponsible} variant="primary" disabled={busyKey === 'whatsapp-responsible-save'} stretch={isMobile}>
+                  {busyKey === 'whatsapp-responsible-save' ? 'Salvando...' : 'Salvar responsável'}
+                </ActionButton>
+                <ActionButton onClick={handleTestResponsibleNotification} disabled={busyKey === 'whatsapp-responsible-test' || !whatsAppStatus?.responsiblePhoneConfigured} stretch={isMobile}>
+                  {busyKey === 'whatsapp-responsible-test' ? 'Enviando teste...' : 'Testar aviso'}
+                </ActionButton>
+              </div>
+              <div style={{ color: 'rgba(244,251,248,0.58)', fontSize: '13px', lineHeight: 1.7 }}>
+                Atual: {whatsAppStatus?.responsiblePhone ? `${whatsAppStatus.responsiblePhone}${whatsAppStatus?.responsibleSource === 'panel' ? ' (painel)' : ' (.env)'}` : 'nenhum número configurado'}
               </div>
             </div>
 

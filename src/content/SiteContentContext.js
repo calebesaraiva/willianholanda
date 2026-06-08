@@ -375,6 +375,31 @@ export function SiteContentProvider({ children }) {
         setWhatsAppStatus(result.status || null);
         return result;
       },
+      async updateWhatsAppResponsible(payload) {
+        const result = await apiFetch('/api/admin/integrations/whatsapp/responsible', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            ...authHeaders,
+          },
+          body: JSON.stringify(payload || {}),
+        });
+        setWhatsAppStatus(result.status || null);
+        await loadDashboard(authHeaders);
+        return result.responsible;
+      },
+      async testResponsibleWhatsAppNotification(payload) {
+        const result = await apiFetch('/api/admin/whatsapp/test-responsible-notification', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...authHeaders,
+          },
+          body: JSON.stringify(payload || {}),
+        });
+        setWhatsAppStatus(result.status || null);
+        return result;
+      },
       async testDoctorWhatsAppNotification(payload) {
         const result = await apiFetch('/api/admin/whatsapp/test-doctor-notification', {
           method: 'POST',
