@@ -7,6 +7,7 @@ const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { DatabaseSync } = require('node:sqlite');
+const { startTemporaryWhatsAppQrBot } = require('./temporary-whatsapp-qr-bot');
 
 const ROOT_DIR = path.join(__dirname, '..');
 
@@ -46,11 +47,16 @@ const CURRENT_STAFF_PASSWORD = process.env.STAFF_PASSWORD || '';
 const LEGACY_ADMIN_USERNAME = 'dra';
 const PUBLIC_BASE_URL = String(process.env.PUBLIC_BASE_URL || '').trim().replace(/\/$/, '');
 const WHATSAPP_GRAPH_VERSION = process.env.WHATSAPP_GRAPH_VERSION || 'v23.0';
+const WHATSAPP_DELIVERY_MODE = String(process.env.WHATSAPP_DELIVERY_MODE || 'meta').trim().toLowerCase();
+const WHATSAPP_TEMPORARY_QR_ENABLED = String(process.env.WHATSAPP_TEMPORARY_QR_ENABLED || '').trim() === 'true'
+  || WHATSAPP_DELIVERY_MODE === 'temporary_qr';
 const WHATSAPP_VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN || '';
 const WHATSAPP_ACCESS_TOKEN = process.env.WHATSAPP_ACCESS_TOKEN || '';
 const WHATSAPP_PHONE_NUMBER_ID = process.env.WHATSAPP_PHONE_NUMBER_ID || '';
 const WHATSAPP_APP_SECRET = process.env.WHATSAPP_APP_SECRET || '';
 const WHATSAPP_DOCTOR_PHONE = process.env.WHATSAPP_DOCTOR_PHONE || '';
+const WHATSAPP_RESPONSIBLE_PHONE = process.env.WHATSAPP_RESPONSIBLE_PHONE || WHATSAPP_DOCTOR_PHONE;
+const WHATSAPP_RESPONSIBLE_NAME = process.env.WHATSAPP_RESPONSIBLE_NAME || '';
 const WHATSAPP_DOCTOR_TEMPLATE_NAME = process.env.WHATSAPP_DOCTOR_TEMPLATE_NAME || '';
 const WHATSAPP_DOCTOR_TEMPLATE_LANGUAGE = process.env.WHATSAPP_DOCTOR_TEMPLATE_LANGUAGE || 'pt_BR';
 const WHATSAPP_DOCTOR_FALLBACK_TEXT_ENABLED = String(process.env.WHATSAPP_DOCTOR_FALLBACK_TEXT_ENABLED || '').trim() === 'true';
@@ -114,6 +120,18 @@ app.use(express.json({
 
 fs.mkdirSync(DATA_DIR, { recursive: true });
 fs.mkdirSync(ARCHIVE_DIR, { recursive: true });
+
+let temporaryWhatsAppQrBot = null;
+let temporaryWhatsAppQrStatus = {
+  enabled: WHATSAPP_TEMPORARY_QR_ENABLED,
+  state: WHATSAPP_TEMPORARY_QR_ENABLED ? 'starting' : 'disabled',
+  connected: false,
+  readyAt: '',
+  lastQrAt: '',
+  lastError: '',
+  clientInfo: null,
+};
+const recentInboundTextBySender = new Map();
 
 const db = new DatabaseSync(SQLITE_PATH);
 db.exec(`
@@ -490,6 +508,39 @@ function getMinutesSince(isoString) {
   const parsed = parseIsoDate(isoString);
   if (!parsed) return Number.POSITIVE_INFINITY;
   return Math.floor((Date.now() - parsed.getTime()) / (60 * 1000));
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function randomInt(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function shouldIgnoreRecentRepeatedText(source, phoneNumber, text) {
+  if (source === 'simulation') return false;
+
+  const normalizedText = String(text || '')
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ');
+  if (!normalizedText) return false;
+
+  const now = Date.now();
+  const key = `${source}:${normalizePhoneNumber(phoneNumber)}:${normalizedText}`;
+  const lastSeenAt = recentInboundTextBySender.get(key) || 0;
+  recentInboundTextBySender.set(key, now);
+
+  for (const [itemKey, itemSeenAt] of recentInboundTextBySender.entries()) {
+    if (now - itemSeenAt > 60_000) {
+      recentInboundTextBySender.delete(itemKey);
+    }
+  }
+
+  return now - lastSeenAt <= 15_000;
 }
 
 function getAppointmentById(id) {
@@ -1483,13 +1534,19 @@ function buildWhatsAppReadiness(req) {
 
 function getWhatsAppStatus(req) {
   const readiness = buildWhatsAppReadiness(req);
+  const temporaryQr = temporaryWhatsAppQrBot?.getStatus
+    ? temporaryWhatsAppQrBot.getStatus()
+    : { ...temporaryWhatsAppQrStatus };
   return {
+    deliveryMode: WHATSAPP_DELIVERY_MODE,
     configured: Boolean(WHATSAPP_VERIFY_TOKEN && WHATSAPP_ACCESS_TOKEN && WHATSAPP_PHONE_NUMBER_ID),
     verifyTokenConfigured: Boolean(WHATSAPP_VERIFY_TOKEN),
     accessTokenConfigured: Boolean(WHATSAPP_ACCESS_TOKEN),
     phoneNumberIdConfigured: Boolean(WHATSAPP_PHONE_NUMBER_ID),
     appSecretConfigured: Boolean(WHATSAPP_APP_SECRET),
     doctorPhoneConfigured: Boolean(WHATSAPP_DOCTOR_PHONE),
+    responsiblePhoneConfigured: Boolean(WHATSAPP_RESPONSIBLE_PHONE),
+    responsibleName: WHATSAPP_RESPONSIBLE_NAME,
     doctorTemplateConfigured: Boolean(WHATSAPP_DOCTOR_TEMPLATE_NAME),
     doctorFallbackTextEnabled: WHATSAPP_DOCTOR_FALLBACK_TEXT_ENABLED,
     patientReminderTemplateConfigured: Boolean(WHATSAPP_PATIENT_REMINDER_TEMPLATE_NAME),
@@ -1497,6 +1554,7 @@ function getWhatsAppStatus(req) {
     patientFallbackTextEnabled: WHATSAPP_PATIENT_FALLBACK_TEXT_ENABLED,
     graphVersion: WHATSAPP_GRAPH_VERSION,
     callbackUrl: readiness.callbackUrl,
+    temporaryQr,
     activeConversations: getActiveWhatsAppSessionCount(),
     recentEvents: getRecentWhatsAppEvents(25),
     readiness,
@@ -1539,6 +1597,7 @@ function parseWhatsAppCommand(text) {
   if (!rawText) return { type: 'help' };
   if (/^(ajuda|menu|oi|ola|bom dia|boa tarde|boa noite|help)\b/.test(normalizedText)) return { type: 'help' };
   if (/(^|\b)(atendente|humano|falar com atendente|falar com pessoa)\b/.test(normalizedText)) return { type: 'human_handoff' };
+  if (/(^|\b)(pagar|pagamento|quero pagar|fechar|fechar atendimento|vou pagar|pix|cartao|cartao de credito|cartao de debito)\b/.test(normalizedText)) return { type: 'payment_interest' };
   if (/(^|\b)(datas|datas liberadas|ver datas|listar datas)\b/.test(normalizedText)) return { type: 'list_dates' };
   if (/(^|\b)(endereco|localizacao|horario|funcionamento|onde fica)\b/.test(normalizedText)) return { type: 'clinic_info' };
   if (/(^|\b)(exame|exames|endoscopia|colonoscopia)\b/.test(normalizedText)) return { type: 'exam_pre_schedule' };
@@ -1551,6 +1610,7 @@ function parseWhatsAppCommand(text) {
   if (/^remarcar\b/.test(normalizedText)) return { type: 'reschedule_appointment', fields };
   if (/^cancelar\b/.test(normalizedText)) return { type: 'cancel_appointment', fields };
   if (/^status\b/.test(normalizedText)) return { type: 'appointment_status', fields };
+  if (/^pagar\b|^pagamento\b|^fechar\b/.test(normalizedText)) return { type: 'payment_interest', fields };
 
   return { type: 'help' };
 }
@@ -1576,6 +1636,9 @@ function resolveMainMenuChoice(text) {
   }
   if (/^(5|atendente|humano|falar com atendente|falar com pessoa)$/.test(normalizedText)) {
     return { type: 'human_handoff', fields: {} };
+  }
+  if (/^(6|pagar|pagamento|quero pagar|fechar|pix|cartao)$/.test(normalizedText)) {
+    return { type: 'payment_interest', fields: {} };
   }
 
   return null;
@@ -1630,7 +1693,25 @@ function buildWhatsAppHelpMessage() {
   ].join('\n');
 }
 
+function isTemporaryQrDeliveryMode() {
+  return WHATSAPP_DELIVERY_MODE === 'temporary_qr';
+}
+
+function shouldDeliverWhatsAppSource(source) {
+  if (source === 'meta') return true;
+  return source === 'temporary_qr' && isTemporaryQrDeliveryMode();
+}
+
 function sendWhatsAppTextMessage(to, body) {
+  if (isTemporaryQrDeliveryMode()) {
+    if (!temporaryWhatsAppQrBot) {
+      const error = new Error('Bot temporario por QR code nao iniciado.');
+      error.statusCode = 503;
+      throw error;
+    }
+    return temporaryWhatsAppQrBot.sendText(to, body);
+  }
+
   if (!WHATSAPP_ACCESS_TOKEN || !WHATSAPP_PHONE_NUMBER_ID) {
     const error = new Error('WhatsApp Cloud API não configurada.');
     error.statusCode = 503;
@@ -1665,6 +1746,14 @@ function sendWhatsAppTextMessage(to, body) {
 }
 
 function sendWhatsAppTemplateMessage(to, templateName, bodyParameters = [], languageCode = 'pt_BR') {
+  if (isTemporaryQrDeliveryMode()) {
+    const body = [
+      `Template temporario: ${templateName || 'mensagem'}`,
+      ...bodyParameters.map((value) => String(value || '').trim()).filter(Boolean),
+    ].join('\n');
+    return sendWhatsAppTextMessage(to, body);
+  }
+
   if (!WHATSAPP_ACCESS_TOKEN || !WHATSAPP_PHONE_NUMBER_ID) {
     const error = new Error('WhatsApp Cloud API nao configurada.');
     error.statusCode = 503;
@@ -1845,6 +1934,7 @@ function buildPricingInfoMessage() {
     'Deseja:',
     '1. Agendar consulta',
     '2. Agendar exame',
+    '6. Pagar ou fechar atendimento',
     '5. Falar com atendente',
   ].join('\n');
 }
@@ -1969,6 +2059,88 @@ function buildDoctorRescheduleSummary(appointment, previousDate, previousTime) {
   ].join('\n');
 }
 
+function buildResponsibleLeadSummary(sender, lead = {}) {
+  const typeLabel = lead.typeLabel || 'Atendimento pelo WhatsApp';
+  const patientName = lead.fullName || sender.profileName || 'Paciente sem nome informado';
+  const contactPhone = normalizePhoneNumber(lead.phone || lead.contactPhone || sender.phoneNumber);
+  const requestedService = lead.examName || lead.procedureName || lead.typeLabel || 'Atendimento';
+  const preferredDate = lead.preferredDate || 'Nao informada';
+  const preferredTime = lead.preferredTime || 'Nao informado';
+  const notes = lead.notes || 'Nenhuma';
+  const insurance = lead.insurance || 'Nao informado';
+
+  return [
+    'Cliente aguardando atendimento',
+    '',
+    `Responsavel: ${WHATSAPP_RESPONSIBLE_NAME || 'Responsavel configurado'}`,
+    `Tipo: ${typeLabel}`,
+    `Paciente: ${patientName}`,
+    `WhatsApp: ${contactPhone || 'Nao informado'}`,
+    `Solicitacao: ${requestedService}`,
+    `Convenio/particular: ${insurance}`,
+    `Data desejada: ${preferredDate}`,
+    `Horario desejado: ${preferredTime}`,
+    `Observacoes: ${notes}`,
+    '',
+    'Entre na conversa pelo WhatsApp conectado e finalize o atendimento por la.',
+  ].join('\n');
+}
+
+async function notifyResponsibleAboutLead(sender, lead = {}) {
+  const responsiblePhone = normalizePhoneNumber(WHATSAPP_RESPONSIBLE_PHONE);
+  if (!responsiblePhone) {
+    return { sent: false, skipped: true, reason: 'responsible_not_configured' };
+  }
+
+  const summaryText = buildResponsibleLeadSummary(sender, lead);
+  const notificationKey = `lead_handoff:${lead.leadId || sender.phoneNumber}:${lead.type || 'human_handoff'}`;
+  if (!reserveAutomationEvent(notificationKey, 'lead_handoff', responsiblePhone, '', {
+    leadId: lead.leadId || '',
+    patientPhone: sender.phoneNumber,
+    type: lead.type || 'human_handoff',
+  })) {
+    return { sent: false, skipped: true, reason: 'already_sent' };
+  }
+
+  try {
+    const payload = await sendWhatsAppTextMessage(responsiblePhone, summaryText);
+    logWhatsAppEvent({
+      direction: 'outbound',
+      phoneNumber: responsiblePhone,
+      profileName: '',
+      messageType: 'text',
+      messageText: summaryText,
+      status: 'sent',
+      metaMessageId: payload?.messages?.[0]?.id || '',
+      details: {
+        source: 'responsible_lead_notification',
+        leadId: lead.leadId || '',
+        patientPhone: sender.phoneNumber,
+        leadType: lead.type || 'human_handoff',
+      },
+    });
+    return { sent: true, payload };
+  } catch (error) {
+    logWhatsAppEvent({
+      direction: 'outbound',
+      phoneNumber: responsiblePhone,
+      profileName: '',
+      messageType: 'text',
+      messageText: summaryText,
+      status: 'failed',
+      details: {
+        source: 'responsible_lead_notification',
+        leadId: lead.leadId || '',
+        patientPhone: sender.phoneNumber,
+        leadType: lead.type || 'human_handoff',
+        error: error.message || 'Falha ao notificar responsavel.',
+        payload: error.payload || null,
+      },
+    });
+    return { sent: false, skipped: false, reason: 'send_failed', error };
+  }
+}
+
 async function notifyDoctorAboutAppointment(appointment) {
   const doctorPhone = normalizePhoneNumber(WHATSAPP_DOCTOR_PHONE);
   if (!doctorPhone || !appointment) {
@@ -1989,7 +2161,10 @@ async function notifyDoctorAboutAppointment(appointment) {
     let payload;
     let channel = 'template';
 
-    if (WHATSAPP_DOCTOR_TEMPLATE_NAME) {
+    if (isTemporaryQrDeliveryMode()) {
+      channel = 'text_fallback';
+      payload = await sendWhatsAppTextMessage(doctorPhone, summaryText);
+    } else if (WHATSAPP_DOCTOR_TEMPLATE_NAME) {
       payload = await sendWhatsAppTemplateMessage(
         doctorPhone,
         WHATSAPP_DOCTOR_TEMPLATE_NAME,
@@ -2047,7 +2222,7 @@ async function notifyDoctorAboutReschedule(appointment, previousDate, previousTi
 
   const body = buildDoctorRescheduleSummary(appointment, previousDate, previousTime);
 
-  if (!WHATSAPP_DOCTOR_FALLBACK_TEXT_ENABLED) {
+  if (!WHATSAPP_DOCTOR_FALLBACK_TEXT_ENABLED && !isTemporaryQrDeliveryMode()) {
     return { sent: false, skipped: true, reason: 'text_fallback_disabled' };
   }
 
@@ -2506,6 +2681,24 @@ function executeWhatsAppCommand(command, sender) {
   if (command.type === 'pricing_info') {
     clearWhatsAppSession(sender.phoneNumber);
     return { replyText: buildPricingInfoMessage(), action: 'pricing_info' };
+  }
+
+  if (command.type === 'payment_interest') {
+    saveWhatsAppSession(sender.phoneNumber, 'human_handoff', { source: sender.source || 'meta', intent: 'payment_interest' });
+    return {
+      replyText: [
+        'Certo.',
+        '',
+        'Vou chamar a equipe para finalizar o pagamento e continuar seu atendimento por aqui.',
+      ].join('\n'),
+      action: 'payment_interest',
+      lead: {
+        type: 'payment_interest',
+        typeLabel: 'Cliente quer pagar ou fechar atendimento',
+        contactPhone: sender.phoneNumber,
+        notes: 'Cliente demonstrou interesse em pagar ou fechar atendimento.',
+      },
+    };
   }
 
   if (command.type === 'clinic_info') {
@@ -3103,12 +3296,12 @@ function executeEnhancedWhatsAppCommand(command, sender) {
   }
 
   if (command.type === 'consult_pre_schedule') {
-    saveWhatsAppSession(sender.phoneNumber, 'consult_full_name', { source: 'meta' });
+    saveWhatsAppSession(sender.phoneNumber, 'consult_full_name', { source: sender.source || 'meta' });
     return { replyText: buildConsultPreScheduleStartMessage(), action: 'consult_pre_schedule_start' };
   }
 
   if (command.type === 'exam_pre_schedule') {
-    saveWhatsAppSession(sender.phoneNumber, 'exam_full_name', { source: 'meta' });
+    saveWhatsAppSession(sender.phoneNumber, 'exam_full_name', { source: sender.source || 'meta' });
     return { replyText: buildExamPreScheduleStartMessage(), action: 'exam_pre_schedule_start' };
   }
 
@@ -3117,18 +3310,36 @@ function executeEnhancedWhatsAppCommand(command, sender) {
     return { replyText: buildPricingInfoMessage(), action: 'pricing_info' };
   }
 
+  if (command.type === 'payment_interest') {
+    saveWhatsAppSession(sender.phoneNumber, 'human_handoff', { source: sender.source || 'meta', intent: 'payment_interest' });
+    return {
+      replyText: [
+        'Certo.',
+        '',
+        'Vou chamar a equipe para finalizar o pagamento e continuar seu atendimento por aqui.',
+      ].join('\n'),
+      action: 'payment_interest',
+      lead: {
+        type: 'payment_interest',
+        typeLabel: 'Cliente quer pagar ou fechar atendimento',
+        contactPhone: sender.phoneNumber,
+        notes: 'Cliente demonstrou interesse em pagar ou fechar atendimento.',
+      },
+    };
+  }
+
   if (command.type === 'clinic_info') {
     clearWhatsAppSession(sender.phoneNumber);
     return { replyText: buildClinicInfoMessage(), action: 'clinic_info' };
   }
 
   if (command.type === 'surgery_info') {
-    saveWhatsAppSession(sender.phoneNumber, 'surgery_menu', { source: 'meta' });
+    saveWhatsAppSession(sender.phoneNumber, 'surgery_menu', { source: sender.source || 'meta' });
     return { replyText: buildSurgeryInfoMessage(), action: 'surgery_info' };
   }
 
   if (command.type === 'human_handoff') {
-    saveWhatsAppSession(sender.phoneNumber, 'human_handoff', { source: 'meta' });
+    saveWhatsAppSession(sender.phoneNumber, 'human_handoff', { source: sender.source || 'meta' });
     return { replyText: buildHumanHandoffMessage(), action: 'human_handoff' };
   }
 
@@ -3185,7 +3396,7 @@ function executeEnhancedWhatsAppCommand(command, sender) {
     const newTime = resolveCommandField(command.fields || {}, ['novahora', 'novohorario', 'hora', 'horario', 'time']);
 
     if (!cpf || !currentDate || !newDate || !newTime) {
-      saveWhatsAppSession(sender.phoneNumber, 'reschedule_cpf', { source: 'meta' });
+      saveWhatsAppSession(sender.phoneNumber, 'reschedule_cpf', { source: sender.source || 'meta' });
       return {
         replyText: buildRescheduleStartMessage(),
         action: 'reschedule_start',
@@ -3221,7 +3432,7 @@ function executeEnhancedWhatsAppCommand(command, sender) {
     const notes = resolveCommandField(command.fields || {}, ['obs', 'observacoes', 'observacao']);
 
     if (!fullName || !address || !cpf || !date || !time) {
-      saveWhatsAppSession(sender.phoneNumber, 'name', { source: 'meta' });
+      saveWhatsAppSession(sender.phoneNumber, 'name', { source: sender.source || 'meta' });
       return {
         replyText: buildProfessionalGuidedStartMessage(),
         action: 'guided_start',
@@ -3271,6 +3482,7 @@ async function processIncomingWhatsAppMessage({
   const sender = {
     phoneNumber: normalizePhoneNumber(from),
     profileName: String(profileName || ''),
+    source,
   };
   const dedupPayload = { from, profileName, text, source };
 
@@ -3290,6 +3502,33 @@ async function processIncomingWhatsAppMessage({
       sender,
       commandType: 'duplicate',
       action: 'duplicate_ignored',
+      replyText: '',
+      appointment: null,
+      delivered: false,
+      duplicate: true,
+    };
+  }
+
+  if (shouldIgnoreRecentRepeatedText(source, sender.phoneNumber, text)) {
+    logWhatsAppEvent({
+      direction: 'inbound',
+      phoneNumber: sender.phoneNumber,
+      profileName: sender.profileName,
+      messageType: 'text',
+      messageText: text,
+      status: 'duplicate_text_ignored',
+      metaMessageId,
+      details: { source, duplicateTextWindowSeconds: 15 },
+    });
+
+    if (source === 'meta' && metaMessageId) {
+      completeInboundMetaMessage(metaMessageId, 'processed');
+    }
+
+    return {
+      sender,
+      commandType: 'duplicate_text',
+      action: 'duplicate_text_ignored',
       replyText: '',
       appointment: null,
       delivered: false,
@@ -3320,7 +3559,9 @@ async function processIncomingWhatsAppMessage({
 
   let outcome;
   try {
-    if (activeSession && !/^(ajuda|menu|oi|ola|bom dia|boa tarde|boa noite|help)\b/i.test(String(text || '').trim())) {
+    if (activeSession && ['human_handoff', 'payment_interest'].includes(command.type)) {
+      outcome = executeEnhancedWhatsAppCommand(command, sender);
+    } else if (activeSession && !/^(ajuda|menu|oi|ola|bom dia|boa tarde|boa noite|help)\b/i.test(String(text || '').trim())) {
       outcome = executeEnhancedGuidedWhatsAppFlow(activeSession, text, sender);
       if (getMinutesSince(activeSession.updatedAt) >= WHATSAPP_SESSION_NUDGE_MINUTES) {
         outcome.replyText = `${buildSessionResumeMessage(activeSession)}\n\n${outcome.replyText}`;
@@ -3356,8 +3597,9 @@ async function processIncomingWhatsAppMessage({
 
   let outboundMetaMessageId = '';
   let deliveryStatus = 'simulated';
-  if (source === 'meta') {
+  if (shouldDeliverWhatsAppSource(source)) {
     try {
+      await sleep(randomInt(1000, 3000));
       const sendResult = await sendWhatsAppTextMessage(sender.phoneNumber, outcome.replyText);
       outboundMetaMessageId = sendResult?.messages?.[0]?.id || '';
       deliveryStatus = 'sent';
@@ -3388,8 +3630,17 @@ async function processIncomingWhatsAppMessage({
     completeInboundMetaMessage(metaMessageId, outcome.error ? 'failed' : 'processed');
   }
 
-  if (source === 'meta' && outcome.appointment && ['guided_create_appointment', 'create_appointment'].includes(outcome.action)) {
+  if (shouldDeliverWhatsAppSource(source) && outcome.appointment && ['guided_create_appointment', 'create_appointment'].includes(outcome.action)) {
     await notifyDoctorAboutAppointment(outcome.appointment);
+  }
+
+  if (shouldDeliverWhatsAppSource(source) && ['human_handoff', 'payment_interest'].includes(outcome.action)) {
+    await notifyResponsibleAboutLead(sender, outcome.lead || {
+      type: 'human_handoff',
+      typeLabel: 'Atendimento solicitado',
+      contactPhone: sender.phoneNumber,
+      notes: 'Cliente pediu para falar com atendente.',
+    });
   }
 
   return {
@@ -3398,7 +3649,7 @@ async function processIncomingWhatsAppMessage({
     action: outcome.action,
     replyText: outcome.replyText,
     appointment: outcome.appointment || null,
-    delivered: source === 'meta',
+    delivered: shouldDeliverWhatsAppSource(source),
   };
 }
 
@@ -3448,7 +3699,10 @@ async function sendPatientAppointmentReminder(appointment, reminderType) {
     let payload;
     let messageType = 'template';
 
-    if (templateName) {
+    if (isTemporaryQrDeliveryMode()) {
+      messageType = 'text';
+      payload = await sendWhatsAppTextMessage(patientPhone, bodyText);
+    } else if (templateName) {
       payload = await sendWhatsAppTemplateMessage(
         patientPhone,
         templateName,
@@ -3530,7 +3784,8 @@ async function runWhatsAppAutomationMaintenance() {
       continue;
     }
 
-    if ((session.draft?.source || '') !== 'meta') continue;
+    const sessionSource = session.draft?.source || 'meta';
+    if (!shouldDeliverWhatsAppSource(sessionSource)) continue;
 
     const body = [
       'Seu atendimento ficou pausado, mas posso continuar de onde paramos.',
@@ -4081,8 +4336,21 @@ if (fs.existsSync(LP_BUILD_DIR)) {
   });
 }
 
+temporaryWhatsAppQrBot = startTemporaryWhatsAppQrBot({
+  enabled: WHATSAPP_TEMPORARY_QR_ENABLED,
+  dataDir: DATA_DIR,
+  processIncomingMessage: processIncomingWhatsAppMessage,
+  onStatusChange: (status) => {
+    temporaryWhatsAppQrStatus = status;
+  },
+  logger: console,
+});
+
 app.listen(PORT, () => {
   console.log(`API running on http://localhost:${PORT}`);
+  if (WHATSAPP_TEMPORARY_QR_ENABLED) {
+    console.log('Bot temporario por QR ativado. Aguarde o QR code no terminal.');
+  }
 });
 
 

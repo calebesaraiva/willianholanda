@@ -11,6 +11,8 @@ WHATSAPP_ACCESS_TOKEN=cole-o-token-da-cloud-api
 WHATSAPP_PHONE_NUMBER_ID=cole-o-phone-number-id
 WHATSAPP_APP_SECRET=cole-o-app-secret-da-meta
 WHATSAPP_GRAPH_VERSION=v23.0
+WHATSAPP_DELIVERY_MODE=meta
+WHATSAPP_TEMPORARY_QR_ENABLED=false
 WHATSAPP_DOCTOR_PHONE=5511999999999
 WHATSAPP_DOCTOR_TEMPLATE_NAME=novo_agendamento_resumo
 WHATSAPP_DOCTOR_TEMPLATE_LANGUAGE=pt_BR
@@ -19,7 +21,33 @@ WHATSAPP_PATIENT_REMINDER_TEMPLATE_NAME=lembrete_agendamento_amanha
 WHATSAPP_PATIENT_SAME_DAY_TEMPLATE_NAME=lembrete_agendamento_hoje
 WHATSAPP_PATIENT_TEMPLATE_LANGUAGE=pt_BR
 WHATSAPP_PATIENT_FALLBACK_TEXT_ENABLED=false
+WHATSAPP_RESPONSIBLE_NAME=Elinaldo Pereira
+WHATSAPP_RESPONSIBLE_PHONE=559887338179
 ```
+
+## Bot temporario por QR code
+
+Enquanto a Meta nao aprova as credenciais, e possivel operar pelo bot temporario:
+
+```env
+WHATSAPP_DELIVERY_MODE=temporary_qr
+WHATSAPP_TEMPORARY_QR_ENABLED=true
+```
+
+Depois de reiniciar o servidor, o terminal mostra um QR code. Escaneie pelo WhatsApp do numero que vai atender os clientes.
+
+Esse modo reaproveita o mesmo fluxo atual: respostas automaticas, conversas ativas, criacao/remarcacao/cancelamento de agendamentos, historico de eventos e painel admin. Quando a Meta aprovar, volte para:
+
+```env
+WHATSAPP_DELIVERY_MODE=meta
+WHATSAPP_TEMPORARY_QR_ENABLED=false
+```
+
+No modo temporario, notificacoes e lembretes saem como texto comum pelo WhatsApp conectado no QR. Templates oficiais continuam reservados para o modo Meta.
+
+A conexao temporaria salva a sessao em disco e tenta reconectar automaticamente quando a VPS reinicia ou quando a conexao cai. Se o WhatsApp encerrar a sessao pelo celular, abra `pm2 logs willian-holanda-sistema` e escaneie o novo QR code.
+
+Para avisar a pessoa responsavel quando um cliente pedir atendimento ou quiser pagar/fechar o atendimento, configure `WHATSAPP_RESPONSIBLE_NAME` e `WHATSAPP_RESPONSIBLE_PHONE`. Se o telefone ficar vazio, o sistema usa `WHATSAPP_DOCTOR_PHONE`.
 
 Arquivo pronto no projeto:
 

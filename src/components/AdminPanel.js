@@ -1549,10 +1549,11 @@ export default function AdminPanel() {
         {isAdmin ? (
           <SectionCard id="whatsapp-admin" eyebrow="WhatsApp Oficial" title="Webhook, testes e operacao" description="Use esta area para validar a integracao oficial da Meta, disparar testes controlados e acompanhar os eventos mais recentes." style={{ padding: sectionPadding }}>
             <Row minWidth={isMobile ? 180 : 220}>
+              <StatCard label="Modo envio" value={whatsAppStatus?.deliveryMode === 'temporary_qr' ? 'QR' : 'Meta'} tone={whatsAppStatus?.deliveryMode === 'temporary_qr' ? 'green' : 'white'} />
+              <StatCard label="Bot QR" value={whatsAppStatus?.temporaryQr?.connected ? 'Online' : (whatsAppStatus?.temporaryQr?.enabled ? 'Aguardando' : 'Off')} tone={whatsAppStatus?.temporaryQr?.connected ? 'green' : 'white'} />
               <StatCard label="Cloud API" value={whatsAppStatus?.configured ? 'OK' : 'Pendente'} tone={whatsAppStatus?.configured ? 'green' : 'white'} />
               <StatCard label="App Secret" value={whatsAppStatus?.appSecretConfigured ? 'OK' : 'Pendente'} tone={whatsAppStatus?.appSecretConfigured ? 'green' : 'white'} />
-              <StatCard label="Notif. medico" value={whatsAppStatus?.doctorPhoneConfigured ? 'OK' : 'Pendente'} tone={whatsAppStatus?.doctorPhoneConfigured ? 'green' : 'white'} />
-              <StatCard label="Template medico" value={whatsAppStatus?.doctorTemplateConfigured ? 'OK' : 'Pendente'} tone={whatsAppStatus?.doctorTemplateConfigured ? 'green' : 'white'} />
+              <StatCard label="Responsavel" value={whatsAppStatus?.responsiblePhoneConfigured ? 'OK' : 'Pendente'} tone={whatsAppStatus?.responsiblePhoneConfigured ? 'green' : 'white'} />
             </Row>
 
             <div style={{ padding: '18px', borderRadius: '20px', background: 'rgba(9,26,36,0.92)', border: '1px solid rgba(255,255,255,0.05)', display: 'grid', gap: '12px' }}>
@@ -1560,9 +1561,20 @@ export default function AdminPanel() {
               <div style={{ color: 'rgba(244,251,248,0.68)', lineHeight: 1.8 }}>
                 <div><strong>Webhook:</strong> {whatsAppStatus?.callbackUrl || '-'}</div>
                 <div><strong>Versao Graph:</strong> {whatsAppStatus?.graphVersion || '-'}</div>
+                <div><strong>Modo de envio:</strong> {whatsAppStatus?.deliveryMode === 'temporary_qr' ? 'Bot temporario por QR code' : 'Cloud API oficial da Meta'}</div>
+                <div><strong>Status QR:</strong> {whatsAppStatus?.temporaryQr?.state || '-'}</div>
+                {whatsAppStatus?.responsibleName ? <div><strong>Responsável:</strong> {whatsAppStatus.responsibleName}</div> : null}
+                {whatsAppStatus?.temporaryQr?.lastQrAt ? <div><strong>Ultimo QR:</strong> {formatDateTimeLabel(whatsAppStatus.temporaryQr.lastQrAt)}</div> : null}
+                {whatsAppStatus?.temporaryQr?.lastError ? <div><strong>Erro QR:</strong> {whatsAppStatus.temporaryQr.lastError}</div> : null}
                 <div><strong>Conversas ativas:</strong> {whatsAppStatus?.activeConversations ?? 0}</div>
                 <div><strong>Fallback texto medico:</strong> {whatsAppStatus?.doctorFallbackTextEnabled ? 'Ativo' : 'Desligado'}</div>
               </div>
+              {whatsAppStatus?.temporaryQr?.qrDataUrl && !whatsAppStatus?.temporaryQr?.connected ? (
+                <div style={{ display: 'grid', gap: '10px', justifyItems: 'start', padding: '14px', borderRadius: '8px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                  <strong style={{ fontSize: '16px' }}>QR code do WhatsApp</strong>
+                  <img src={whatsAppStatus.temporaryQr.qrDataUrl} alt="QR code para conectar WhatsApp" style={{ width: '100%', maxWidth: '260px', borderRadius: '8px', background: '#FFFFFF', padding: '8px' }} />
+                </div>
+              ) : null}
               <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                 <ActionButton onClick={handleRefreshPanel} disabled={busyKey === 'refresh'} stretch={isMobile}>{busyKey === 'refresh' ? 'Atualizando...' : 'Atualizar status'}</ActionButton>
                 <ActionButton onClick={handleRunSystemCheck} disabled={busyKey === 'system-check'} stretch={isMobile}>{busyKey === 'system-check' ? 'Testando sistema...' : 'Rodar check completo'}</ActionButton>
