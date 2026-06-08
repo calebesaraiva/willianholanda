@@ -3485,6 +3485,7 @@ function executeEnhancedWhatsAppCommand(command, sender) {
 
 async function processIncomingWhatsAppMessage({
   from,
+  replyTo = '',
   profileName,
   text,
   metaMessageId = '',
@@ -3519,6 +3520,7 @@ async function processIncomingWhatsAppMessage({
 
   const sender = {
     phoneNumber: normalizePhoneNumber(from),
+    replyTo: String(replyTo || '').trim(),
     profileName: String(profileName || ''),
     source,
   };
@@ -3638,7 +3640,7 @@ async function processIncomingWhatsAppMessage({
   if (shouldDeliverWhatsAppSource(source)) {
     try {
       await sleep(randomInt(1000, 3000));
-      const sendResult = await sendWhatsAppTextMessage(sender.phoneNumber, outcome.replyText);
+      const sendResult = await sendWhatsAppTextMessage(sender.replyTo || sender.phoneNumber, outcome.replyText);
       outboundMetaMessageId = sendResult?.messages?.[0]?.id || '';
       deliveryStatus = 'sent';
     } catch (error) {

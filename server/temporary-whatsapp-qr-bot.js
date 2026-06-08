@@ -7,6 +7,11 @@ function normalizePhoneNumber(value) {
 }
 
 function buildJid(phoneNumber) {
+  const rawValue = String(phoneNumber || '').trim();
+  if (rawValue.endsWith('@s.whatsapp.net') || rawValue.endsWith('@lid')) {
+    return rawValue;
+  }
+
   const normalized = normalizePhoneNumber(phoneNumber);
   return normalized ? `${normalized}@s.whatsapp.net` : '';
 }
@@ -129,6 +134,7 @@ function startTemporaryWhatsAppQrBot(options = {}) {
       try {
         await processIncomingMessage({
           from: getPhoneFromJid(remoteJid),
+          replyTo: remoteJid,
           profileName: message.pushName || '',
           text,
           metaMessageId: `temporary:${messageId}`,
