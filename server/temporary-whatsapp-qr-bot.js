@@ -31,6 +31,16 @@ function getPhoneFromJid(jid = '') {
   return normalizePhoneNumber(String(jid).split('@')[0]);
 }
 
+function getMessageTimestampMs(message = {}) {
+  const value = message.messageTimestamp;
+  if (!value) return Date.now();
+  if (typeof value === 'number') return value * 1000;
+  if (typeof value === 'bigint') return Number(value) * 1000;
+  if (typeof value?.toNumber === 'function') return value.toNumber() * 1000;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed * 1000 : Date.now();
+}
+
 function isGroupJid(jid = '') {
   return String(jid || '').endsWith('@g.us');
 }
@@ -120,12 +130,13 @@ function startTemporaryWhatsAppQrBot(options = {}) {
     }, delayMs);
   };
 
-  const handleMessages = async (messages = []) => {
+  const handleMessages = async (messages = [], type = 'notify') => {
     for (const message of messages) {
       const messageId = message?.key?.id || '';
       const remoteJid = message?.key?.remoteJid || '';
       if (!messageId || processedMessageIds.has(messageId)) continue;
       if (message?.key?.fromMe || isGroupJid(remoteJid) || remoteJid === 'status@broadcast') continue;
+      if (type !== 'notify' && Date.now() - getMessageTimestampMs(message) > 10 * 60 * 1000) continue;
 
       const text = extractMessageText(message);
       if (!text) continue;
@@ -238,8 +249,7 @@ function startTemporaryWhatsAppQrBot(options = {}) {
         }
       });
       socket.ev.on('messages.upsert', async ({ messages = [], type }) => {
-        if (type !== 'notify') return;
-        await handleMessages(messages);
+        await handleMessages(messages, type);
       });
 
       updateStatus({ state: 'starting', connected: false });
