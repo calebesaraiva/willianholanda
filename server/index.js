@@ -450,7 +450,8 @@ function getFreeTimeSlotsByDate(schedule = getSchedule()) {
 
 function getDatesWithFreeSlots(schedule = getSchedule()) {
   const freeTimeSlotsByDate = getFreeTimeSlotsByDate(schedule);
-  return schedule.availableDates.filter((date) => (freeTimeSlotsByDate[date] || []).length > 0);
+  const today = dateKeyFromDate(new Date());
+  return schedule.availableDates.filter((date) => date >= today && (freeTimeSlotsByDate[date] || []).length > 0);
 }
 
 function getWhatsAppSession(phoneNumber) {
@@ -1982,24 +1983,42 @@ function buildClinicInfoMessage() {
 }
 
 function buildConsultPreScheduleStartMessage() {
+  const schedule = getSchedule();
+  const dates = getDatesWithFreeSlots(schedule);
+  if (!dates.length) {
+    return 'No momento nao existem horarios liberados para consulta. Se preferir, envie ATENDENTE para falar com a equipe.';
+  }
+
   return [
     'Agendar consulta',
     '',
-    'Vou coletar seus dados para pre-agendamento.',
-    'A consulta nao sera confirmada automaticamente. A equipe da WR Gastro ira validar a disponibilidade e retornar por aqui.',
+    'Vou confirmar seu agendamento usando os horarios livres do sistema.',
+    'Quando voce confirmar, o horario fica bloqueado no painel e deixa de aparecer no WhatsApp.',
     '',
     'Para comecar, envie o nome completo do paciente.',
+    '',
+    'Datas com vaga no momento:',
+    buildFreeDatesListText(schedule),
   ].join('\n');
 }
 
 function buildExamPreScheduleStartMessage() {
+  const schedule = getSchedule();
+  const dates = getDatesWithFreeSlots(schedule);
+  if (!dates.length) {
+    return 'No momento nao existem horarios liberados para exames. Se preferir, envie ATENDENTE para falar com a equipe.';
+  }
+
   return [
     'Agendar exames',
     '',
-    'Vou coletar seus dados para pre-agendamento do exame.',
-    'O exame nao sera confirmado automaticamente. A equipe da WR Gastro ira validar a disponibilidade e retornar por aqui.',
+    'Vou confirmar seu agendamento usando os horarios livres do sistema.',
+    'Quando voce confirmar, o horario fica bloqueado no painel e deixa de aparecer no WhatsApp.',
     '',
     'Para comecar, envie o nome completo do paciente.',
+    '',
+    'Datas com vaga no momento:',
+    buildFreeDatesListText(schedule),
   ].join('\n');
 }
 
@@ -2097,6 +2116,23 @@ function buildResponsibleLeadSummary(sender, lead = {}) {
   ].join('\n');
 }
 
+function buildResponsibleAppointmentSummary(appointment) {
+  return [
+    'Novo agendamento confirmado pelo WhatsApp',
+    '',
+    `Responsavel: ${WHATSAPP_RESPONSIBLE_NAME || 'Responsavel configurado'}`,
+    `Paciente: ${appointment.fullName}`,
+    `WhatsApp: ${appointment.contactPhone || 'Nao informado'}`,
+    `Data: ${appointment.date}`,
+    `Horario: ${appointment.time || 'A definir'}`,
+    `Procedimento: ${appointment.procedureName || 'Nao informado'}`,
+    `CPF: ${maskCpf(appointment.cpf) || 'Nao informado'}`,
+    `Observacoes: ${appointment.notes || 'Nenhuma'}`,
+    '',
+    'O horario ja foi bloqueado na agenda do dashboard.',
+  ].join('\n');
+}
+
 async function notifyResponsibleAboutLead(sender, lead = {}) {
   const responsiblePhone = normalizePhoneNumber(WHATSAPP_RESPONSIBLE_PHONE);
   if (!responsiblePhone) {
@@ -2145,6 +2181,58 @@ async function notifyResponsibleAboutLead(sender, lead = {}) {
         patientPhone: sender.phoneNumber,
         leadType: lead.type || 'human_handoff',
         error: error.message || 'Falha ao notificar responsavel.',
+        payload: error.payload || null,
+      },
+    });
+    return { sent: false, skipped: false, reason: 'send_failed', error };
+  }
+}
+
+async function notifyResponsibleAboutAppointment(appointment) {
+  const responsiblePhone = normalizePhoneNumber(WHATSAPP_RESPONSIBLE_PHONE);
+  if (!responsiblePhone || !appointment) {
+    return { sent: false, skipped: true, reason: 'responsible_not_configured' };
+  }
+
+  const summaryText = buildResponsibleAppointmentSummary(appointment);
+  const notificationKey = `responsible_appointment:${appointment.id}`;
+  if (!reserveAutomationEvent(notificationKey, 'responsible_appointment', responsiblePhone, appointment.id, {
+    appointmentId: appointment.id || '',
+    patientPhone: appointment.contactPhone || '',
+  })) {
+    return { sent: false, skipped: true, reason: 'already_sent' };
+  }
+
+  try {
+    const payload = await sendWhatsAppTextMessage(responsiblePhone, summaryText);
+    logWhatsAppEvent({
+      direction: 'outbound',
+      phoneNumber: responsiblePhone,
+      profileName: '',
+      messageType: 'text',
+      messageText: summaryText,
+      status: 'sent',
+      appointmentId: appointment.id || '',
+      metaMessageId: payload?.messages?.[0]?.id || '',
+      details: {
+        source: 'responsible_appointment_notification',
+        patientPhone: appointment.contactPhone || '',
+      },
+    });
+    return { sent: true, payload };
+  } catch (error) {
+    logWhatsAppEvent({
+      direction: 'outbound',
+      phoneNumber: responsiblePhone,
+      profileName: '',
+      messageType: 'text',
+      messageText: summaryText,
+      status: 'failed',
+      appointmentId: appointment.id || '',
+      details: {
+        source: 'responsible_appointment_notification',
+        patientPhone: appointment.contactPhone || '',
+        error: error.message || 'Falha ao notificar responsavel sobre o agendamento.',
         payload: error.payload || null,
       },
     });
@@ -3108,9 +3196,17 @@ function executeEnhancedGuidedWhatsAppFlow(session, text, sender) {
       };
     }
     draft.time = selectedTime;
+    if (draft.lockProcedure && draft.procedureName) {
+      saveWhatsAppSession(sender.phoneNumber, 'notes', draft);
+      return {
+        replyText: 'Se quiser adicionar observacoes, envie agora. Se nao, responda PULAR.',
+        action: 'guided_collect_notes',
+      };
+    }
+
     saveWhatsAppSession(sender.phoneNumber, 'procedure', draft);
     return {
-      replyText: 'Se desejar, me envie o procedimento. Se quiser pular essa etapa, responda PULAR.',
+      replyText: draft.procedurePrompt || 'Se desejar, me envie o procedimento. Se quiser pular essa etapa, responda PULAR.',
       action: 'guided_collect_procedure',
     };
   }
@@ -3166,7 +3262,7 @@ function executeEnhancedGuidedWhatsAppFlow(session, text, sender) {
     );
 
     return {
-      replyText: `Agendamento confirmado com sucesso para ${appointment.fullName} em ${appointment.date} as ${appointment.time}. Se precisar, posso ajudar com STATUS, REMARCAR ou CANCELAR.`,
+      replyText: `Agendamento confirmado com sucesso para ${appointment.fullName} em ${appointment.date} as ${appointment.time}. O horario ja ficou reservado no sistema. Se precisar, posso ajudar com STATUS, REMARCAR ou CANCELAR.`,
       action: 'guided_create_appointment',
       appointment,
     };
@@ -3307,12 +3403,25 @@ function executeEnhancedWhatsAppCommand(command, sender) {
   }
 
   if (command.type === 'consult_pre_schedule') {
-    saveWhatsAppSession(sender.phoneNumber, 'consult_full_name', { source: sender.source || 'meta' });
+    saveWhatsAppSession(sender.phoneNumber, 'name', {
+      source: sender.source || 'meta',
+      type: 'appointment',
+      typeLabel: 'Agendamento de consulta',
+      flowType: 'consult_appointment',
+      procedureName: 'Consulta gastroenterologica',
+      lockProcedure: true,
+    });
     return { replyText: buildConsultPreScheduleStartMessage(), action: 'consult_pre_schedule_start' };
   }
 
   if (command.type === 'exam_pre_schedule') {
-    saveWhatsAppSession(sender.phoneNumber, 'exam_full_name', { source: sender.source || 'meta' });
+    saveWhatsAppSession(sender.phoneNumber, 'name', {
+      source: sender.source || 'meta',
+      type: 'appointment',
+      typeLabel: 'Agendamento de exame',
+      flowType: 'exam_appointment',
+      procedurePrompt: 'Qual exame deseja agendar? Exemplo: Endoscopia ou Colonoscopia.',
+    });
     return { replyText: buildExamPreScheduleStartMessage(), action: 'exam_pre_schedule_start' };
   }
 
@@ -3610,7 +3719,14 @@ async function processIncomingWhatsAppMessage({
       clearWhatsAppSession(sender.phoneNumber);
       outcome = executeEnhancedWhatsAppCommand(command, sender);
     } else if (isGuidedScheduleTrigger(text) && command.type !== 'consult_pre_schedule') {
-      saveWhatsAppSession(sender.phoneNumber, 'consult_full_name', { source });
+      saveWhatsAppSession(sender.phoneNumber, 'name', {
+        source,
+        type: 'appointment',
+        typeLabel: 'Agendamento de consulta',
+        flowType: 'consult_appointment',
+        procedureName: 'Consulta gastroenterologica',
+        lockProcedure: true,
+      });
       outcome = {
         replyText: buildConsultPreScheduleStartMessage(),
         action: 'consult_pre_schedule_start',
@@ -3672,6 +3788,7 @@ async function processIncomingWhatsAppMessage({
 
   if (shouldDeliverWhatsAppSource(source) && outcome.appointment && ['guided_create_appointment', 'create_appointment'].includes(outcome.action)) {
     await notifyDoctorAboutAppointment(outcome.appointment);
+    await notifyResponsibleAboutAppointment(outcome.appointment);
   }
 
   if (shouldDeliverWhatsAppSource(source) && ['human_handoff', 'payment_interest'].includes(outcome.action)) {
