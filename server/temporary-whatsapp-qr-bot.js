@@ -26,6 +26,10 @@ function getPhoneFromJid(jid = '') {
   return normalizePhoneNumber(String(jid).split('@')[0]);
 }
 
+function isGroupJid(jid = '') {
+  return String(jid || '').endsWith('@g.us');
+}
+
 function startTemporaryWhatsAppQrBot(options = {}) {
   const {
     enabled = false,
@@ -116,7 +120,7 @@ function startTemporaryWhatsAppQrBot(options = {}) {
       const messageId = message?.key?.id || '';
       const remoteJid = message?.key?.remoteJid || '';
       if (!messageId || processedMessageIds.has(messageId)) continue;
-      if (message?.key?.fromMe || remoteJid.endsWith('@g.us') || remoteJid === 'status@broadcast') continue;
+      if (message?.key?.fromMe || isGroupJid(remoteJid) || remoteJid === 'status@broadcast') continue;
 
       const text = extractMessageText(message);
       if (!text) continue;
@@ -257,6 +261,12 @@ function startTemporaryWhatsAppQrBot(options = {}) {
   return {
     getStatus: () => ({ ...status }),
     sendText: async (to, body) => {
+      if (isGroupJid(to)) {
+        const error = new Error('Envio para grupos bloqueado. O bot responde apenas conversas privadas.');
+        error.statusCode = 400;
+        throw error;
+      }
+
       if (!status.connected) {
         scheduleReconnect('Tentativa de envio com bot desconectado.');
       }

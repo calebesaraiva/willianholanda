@@ -297,6 +297,11 @@ function normalizePhoneNumber(value) {
   return String(value || '').replace(/\D/g, '').replace(/^00/, '');
 }
 
+function isGroupConversationId(value) {
+  const normalized = String(value || '').trim().toLowerCase();
+  return normalized.endsWith('@g.us');
+}
+
 function normalizeTime(value) {
   const normalized = String(value || '').trim();
   return /^\d{2}:\d{2}$/.test(normalized) ? normalized : '';
@@ -1703,6 +1708,12 @@ function shouldDeliverWhatsAppSource(source) {
 }
 
 function sendWhatsAppTextMessage(to, body) {
+  if (isGroupConversationId(to)) {
+    const error = new Error('Envio para grupos bloqueado. O bot responde apenas conversas privadas.');
+    error.statusCode = 400;
+    throw error;
+  }
+
   if (isTemporaryQrDeliveryMode()) {
     if (!temporaryWhatsAppQrBot) {
       const error = new Error('Bot temporario por QR code nao iniciado.');
@@ -3479,6 +3490,33 @@ async function processIncomingWhatsAppMessage({
   metaMessageId = '',
   source = 'meta',
 }) {
+  if (isGroupConversationId(from)) {
+    logWhatsAppEvent({
+      direction: 'inbound',
+      phoneNumber: '',
+      profileName: String(profileName || ''),
+      messageType: 'text',
+      messageText: text,
+      status: 'group_ignored',
+      metaMessageId,
+      details: { source, groupConversation: true },
+    });
+
+    return {
+      sender: {
+        phoneNumber: '',
+        profileName: String(profileName || ''),
+        source,
+      },
+      commandType: 'group_ignored',
+      action: 'group_ignored',
+      replyText: '',
+      appointment: null,
+      delivered: false,
+      groupIgnored: true,
+    };
+  }
+
   const sender = {
     phoneNumber: normalizePhoneNumber(from),
     profileName: String(profileName || ''),

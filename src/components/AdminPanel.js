@@ -1094,6 +1094,7 @@ export default function AdminPanel() {
     [receptionistAvailableDates, freeTimeSlotsByDate]
   );
   const nextAvailableDate = receptionistAvailableDates[0] || '';
+  const todayDate = useMemo(() => formatDateKey(systemDate), [systemDate]);
   const selectedDateSlots = availableTimeSlots[selectedCalendarDate] || [];
   const selectedDateFreeSlots = freeTimeSlotsByDate[selectedCalendarDate] || [];
   const selectedDateOccupiedSlots = selectedDateSlots.filter((time) => !selectedDateFreeSlots.includes(time));
@@ -1148,7 +1149,6 @@ export default function AdminPanel() {
   }, [doctorNotificationForm.date, nextAvailableDate, todayDate]);
   const auditLogs = dashboard?.auditLogs || [];
   const whatsAppEvents = whatsAppStatus?.recentEvents || [];
-  const todayDate = useMemo(() => formatDateKey(systemDate), [systemDate]);
   const performanceSummaries = useMemo(
     () => buildPerformanceSummaries(appointmentsByDate, availableTimeSlots, todayDate),
     [appointmentsByDate, availableTimeSlots, todayDate]
