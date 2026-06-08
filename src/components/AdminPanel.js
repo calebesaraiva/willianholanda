@@ -1100,6 +1100,14 @@ export default function AdminPanel() {
   const selectedDateOccupiedSlots = selectedDateSlots.filter((time) => !selectedDateFreeSlots.includes(time));
   const selectedDateIsAvailable = draft.admin.availableDates.includes(selectedCalendarDate);
   const selectedDateIsFull = selectedDateIsAvailable && selectedDateSlots.length > 0 && selectedDateFreeSlots.length === 0;
+  const selectedDateAppointments = useMemo(
+    () => appointmentsByDate.filter((item) => item.date === selectedCalendarDate && item.status !== 'cancelado'),
+    [appointmentsByDate, selectedCalendarDate]
+  );
+  const activeOperationalAppointments = useMemo(
+    () => appointmentsByDate.filter((item) => item.status !== 'cancelado' && !item.archivedAt),
+    [appointmentsByDate]
+  );
   const datesWithoutSlots = draft.admin.availableDates.filter((date) => (availableTimeSlots[date] || []).length === 0);
   const appointmentTimeOptions = appointmentForm.date ? (freeTimeSlotsByDate[appointmentForm.date] || []) : [];
   const appointmentEditDateOptions = useMemo(() => {
@@ -1811,9 +1819,16 @@ export default function AdminPanel() {
           </SectionCard>
         ) : null}
 
-        <SectionCard id="agenda-admin" eyebrow="Fluxo real da clínica" title={adminScheduleOnly ? 'Agenda da administração' : 'Agenda e agendamentos'} description={adminScheduleOnly ? 'Nesta área a administração só precisa liberar os dias de atendimento e os horários que devem aparecer para a recepção e para o WhatsApp.' : 'A administração libera os dias de atendimento. A equipe cadastra o paciente com nome completo, endereço e CPF, e só consegue trabalhar em datas liberadas.'} style={{ padding: sectionPadding }}>
-          <div style={{ display: 'grid', gridTemplateColumns: isTablet ? '1fr' : 'minmax(340px, 1.25fr) minmax(320px, 0.95fr)', gap: '20px' }}>
-            <div style={{ background: 'rgba(9,26,36,0.92)', borderRadius: '22px', padding: '20px', border: '1px solid rgba(255,255,255,0.05)' }}>
+        <SectionCard id="agenda-admin" eyebrow="Agenda" title="Agenda simples" description="Escolha um dia, libere ou bloqueie horários e acompanhe os pacientes agendados sem sair da tela." style={{ padding: sectionPadding }}>
+          <Row minWidth={isMobile ? 150 : 190}>
+            <StatCard label="Dias com vaga" value={receptionistAvailableDates.length} tone="green" />
+            <StatCard label="Horários livres" value={Object.values(freeTimeSlotsByDate).reduce((total, items) => total + items.length, 0)} tone="green" />
+            <StatCard label="Agendamentos ativos" value={activeOperationalAppointments.length} />
+            <StatCard label="Hoje" value={todayAppointments.length} tone={todayAppointments.length ? 'green' : 'white'} />
+          </Row>
+
+          <div style={{ display: 'grid', gridTemplateColumns: isTablet ? '1fr' : 'minmax(360px, 1fr) minmax(360px, 0.95fr)', gap: '16px', alignItems: 'start' }}>
+            <div style={{ background: 'rgba(9,26,36,0.88)', borderRadius: '8px', padding: isMobile ? '14px' : '18px', border: '1px solid rgba(255,255,255,0.06)', display: 'grid', gap: '14px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', gap: '12px', flexWrap: 'wrap' }}>
                 <ActionButton onClick={() => {
                   autoFollowSystemMonth.current = false;
@@ -1854,7 +1869,7 @@ export default function AdminPanel() {
                         : 'rgba(7,18,27,0.65)';
 
                       return (
-                        <button key={dateString} type="button" onClick={() => setSelectedCalendarDate(dateString)} style={{ minHeight: calendarCellMinHeight, padding: isMobile ? '6px' : '8px', borderRadius: '16px', border: isSelected ? '1px solid #15ABD1' : hasAppointment ? '1px solid rgba(17,175,186,0.7)' : '1px solid rgba(255,255,255,0.06)', background: dayBackground, color: dayTextColor, cursor: 'pointer', opacity: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <button key={dateString} type="button" onClick={() => setSelectedCalendarDate(dateString)} style={{ minHeight: calendarCellMinHeight, padding: isMobile ? '6px' : '8px', borderRadius: '8px', border: isSelected ? '1px solid #15ABD1' : hasAppointment ? '1px solid rgba(17,175,186,0.7)' : '1px solid rgba(255,255,255,0.06)', background: dayBackground, color: dayTextColor, cursor: 'pointer', opacity: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                           <span style={{ fontSize: isMobile ? '12px' : '13px' }}>{date.getDate()}</span>
                           <div style={{ display: 'grid', gap: '2px' }}>
                             {hasFreeSlot ? <span style={{ fontSize: isMobile ? '9px' : '10px', color: freeSlots === 1 ? '#D9F7FF' : '#7AE1A5' }}>{freeSlots === 1 ? 'Última vaga' : `${freeSlots} vaga(s)`}</span> : null}
@@ -1909,56 +1924,8 @@ export default function AdminPanel() {
               </div>
             </div>
 
-            <div style={{ display: 'grid', gap: '18px' }}>
-              {!adminScheduleOnly ? (
-                <div style={{ background: 'rgba(9,26,36,0.92)', borderRadius: '22px', padding: '20px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                  <strong style={{ display: 'block', marginBottom: '14px', fontSize: '18px' }}>Novo agendamento</strong>
-                  <p style={{ margin: '0 0 14px', color: 'rgba(244,251,248,0.62)', lineHeight: 1.7 }}>
-                    Escolha um dia no calendário. O formulário abre em uma janela rápida com os horários livres daquele dia.
-                  </p>
-                  <ActionButton onClick={() => prepareQuickAppointment(nextAvailableDate)} variant="primary" disabled={!nextAvailableDate} stretch={isMobile}>Abrir próxima vaga</ActionButton>
-                  {receptionistAvailableDates.length === 0 ? (
-                    <p style={{ margin: '14px 0 0', color: '#E7B1B1', lineHeight: 1.7 }}>
-                      Nenhum dia está liberado com horário disponível no momento.
-                    </p>
-                  ) : null}
-                </div>
-              ) : null}
-
-              {!adminScheduleOnly ? (
-                <div style={{ background: 'rgba(9,26,36,0.92)', borderRadius: '22px', padding: '20px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                  <strong style={{ display: 'block', marginBottom: '14px', fontSize: '18px' }}>Próximas vagas</strong>
-                  <p style={{ margin: '0 0 14px', color: 'rgba(244,251,248,0.62)', lineHeight: 1.7 }}>
-                    Uma leitura rápida para a recepção bater o olho e responder o paciente.
-                  </p>
-                  {nextSlotsPreview.length === 0 ? (
-                    <p style={{ margin: 0, color: 'rgba(244,251,248,0.62)', lineHeight: 1.7 }}>Ainda não existem datas abertas para atendimento.</p>
-                  ) : (
-                    <div style={{ display: 'grid', gap: '10px' }}>
-                      {nextSlotsPreview.map((item) => (
-                        <button key={item.date} type="button" onClick={() => prepareQuickAppointment(item.date)} style={{ textAlign: 'left', padding: '14px', borderRadius: '18px', background: 'rgba(21,171,209,0.12)', border: '1px solid rgba(21,171,209,0.24)', color: '#D9F7FF', cursor: 'pointer' }}>
-                          <strong style={{ display: 'block', marginBottom: '6px', fontSize: '14px' }}>{formatDateLabel(item.date)}</strong>
-                          <span style={{ display: 'block', color: item.count === 1 ? '#D9F7FF' : 'rgba(244,251,248,0.72)', fontSize: '12px', marginBottom: '8px' }}>
-                            {item.count === 1 ? 'Última vaga do dia' : `${item.count} horários livres`}
-                          </span>
-                          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                            {item.times.map((time) => (
-                              <span key={time} style={{ padding: '6px 10px', borderRadius: '999px', background: 'rgba(255,255,255,0.08)', color: '#FFFFFF', fontSize: '12px' }}>{time}</span>
-                            ))}
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ) : null}
-
-              <div style={{ background: 'rgba(9,26,36,0.92)', borderRadius: '22px', padding: '20px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                <strong style={{ display: 'block', marginBottom: '14px', fontSize: '18px' }}>Datas liberadas</strong>
-                {upcomingHighlights.length === 0 ? <p style={{ margin: 0, color: 'rgba(244,251,248,0.62)', lineHeight: 1.7 }}>Ainda não existem datas abertas para atendimento.</p> : <div style={{ display: 'grid', gap: '10px' }}>{upcomingHighlights.map((date) => { const freeSlotsCount = (freeTimeSlotsByDate[date] || []).length; return <div key={date} style={{ padding: '12px 14px', borderRadius: '18px', background: 'rgba(21,171,209,0.12)', border: '1px solid rgba(21,171,209,0.24)', color: '#D9F7FF' }}><strong style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>{formatDateLabel(date)}</strong><span style={{ fontSize: '12px', color: freeSlotsCount === 1 ? '#D9F7FF' : 'rgba(244,251,248,0.72)' }}>{freeSlotsCount === 1 ? 'Última vaga disponível' : `${freeSlotsCount} horário(s) livre(s)`}</span></div>; })}</div>}
-              </div>
-
-              <div style={{ background: 'rgba(9,26,36,0.92)', borderRadius: '22px', padding: '20px', border: '1px solid rgba(255,255,255,0.05)' }}>
+            <div style={{ display: 'grid', gap: '16px' }}>
+              <div style={{ background: 'rgba(9,26,36,0.88)', borderRadius: '8px', padding: isMobile ? '14px' : '18px', border: '1px solid rgba(255,255,255,0.06)' }}>
                 <strong style={{ display: 'block', marginBottom: '14px', fontSize: '18px' }}>Horários do dia</strong>
                 <p style={{ margin: '0 0 14px', color: 'rgba(244,251,248,0.62)', lineHeight: 1.7 }}>
                   {selectedCalendarDate ? formatDateLabel(selectedCalendarDate) : 'Selecione um dia no calendário para ver ou editar os horários.'}
@@ -1980,23 +1947,26 @@ export default function AdminPanel() {
                           <ActionButton onClick={() => toggleAvailableDate(selectedCalendarDate)} variant={draft.admin.availableDates.includes(selectedCalendarDate) ? 'danger' : 'primary'} disabled={busyKey === 'schedule'} stretch={isMobile} style={compactButtonStyle}>
                             {busyKey === 'schedule' ? 'Salvando...' : draft.admin.availableDates.includes(selectedCalendarDate) ? 'Bloquear dia' : 'Liberar dia'}
                           </ActionButton>
-                          {DEFAULT_TIME_SLOTS.map((time) => (
-                            <ActionButton key={time} onClick={() => addTimeSlotToDate(selectedCalendarDate, time)}>{time}</ActionButton>
-                          ))}
+                          <ActionButton onClick={() => applyPresetSlotsToDate(selectedCalendarDate)} variant="primary" disabled={busyKey === 'schedule'} stretch={isMobile} style={compactButtonStyle}>Aplicar horários padrão</ActionButton>
+                          {!adminScheduleOnly ? <ActionButton onClick={() => openAppointmentModal(selectedCalendarDate)} disabled={!selectedDateFreeSlots.length} stretch={isMobile} style={compactButtonStyle}>Novo agendamento</ActionButton> : null}
                         </div>
-                        <Field label="Novo horário" type="time" value={slotEditor.time} onChange={(value) => setSlotEditor((previous) => ({ ...previous, time: value }))} />
-                        <ActionButton onClick={() => addTimeSlotToDate(selectedCalendarDate, slotEditor.time)} variant="primary" stretch={isMobile}>Adicionar horário</ActionButton>
+                        <Row minWidth={isMobile ? 160 : 180}>
+                          <Field label="Novo horário" type="time" value={slotEditor.time} onChange={(value) => setSlotEditor((previous) => ({ ...previous, time: value }))} />
+                          <div style={{ display: 'flex', alignItems: 'end' }}>
+                            <ActionButton onClick={() => addTimeSlotToDate(selectedCalendarDate, slotEditor.time)} variant="primary" stretch>Adicionar horário</ActionButton>
+                          </div>
+                        </Row>
                       </div>
                     ) : null}
 
-                    <div style={{ display: 'grid', gap: '10px', marginTop: '14px' }}>
+                    <div style={{ display: 'grid', gap: '10px', marginTop: '14px', maxHeight: isMobile ? '360px' : '520px', overflowY: 'auto', paddingRight: selectedDateSlots.length > 8 ? '4px' : 0 }}>
                       {(selectedDateSlots.length === 0) ? (
                         <p style={{ margin: 0, color: 'rgba(244,251,248,0.62)' }}>
                           Nenhum horário cadastrado para este dia.
                         </p>
                       ) : (
                         selectedDateSlots.map((time) => (
-                          <div key={time} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '16px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                          <div key={time} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '8px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.05)' }}>
                             <div>
                               <strong>{time}</strong>
                               <div style={{ color: 'rgba(244,251,248,0.62)', fontSize: '13px' }}>
@@ -2011,11 +1981,52 @@ export default function AdminPanel() {
                   </>
                 ) : null}
               </div>
+
+              <div style={{ background: 'rgba(9,26,36,0.88)', borderRadius: '8px', padding: isMobile ? '14px' : '18px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                <strong style={{ display: 'block', marginBottom: '14px', fontSize: '18px' }}>Agendamentos do dia</strong>
+                {!selectedCalendarDate ? (
+                  <p style={{ margin: 0, color: 'rgba(244,251,248,0.62)', lineHeight: 1.7 }}>Selecione uma data no calendário.</p>
+                ) : selectedDateAppointments.length === 0 ? (
+                  <p style={{ margin: 0, color: 'rgba(244,251,248,0.62)', lineHeight: 1.7 }}>Nenhum paciente ativo neste dia.</p>
+                ) : (
+                  <div style={{ display: 'grid', gap: '8px' }}>
+                    {selectedDateAppointments.map((appointment) => (
+                      <button key={appointment.id} type="button" onClick={() => openAppointmentDetails(appointment.id)} style={{ textAlign: 'left', borderRadius: '8px', padding: '12px', border: '1px solid rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.04)', color: '#FFFFFF', cursor: 'pointer' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', alignItems: 'center' }}>
+                          <div>
+                            <strong style={{ display: 'block', fontSize: '15px' }}>{appointment.fullName}</strong>
+                            <span style={{ color: 'rgba(244,251,248,0.64)', fontSize: '13px' }}>{appointment.time || 'Sem horário'} · {appointment.procedureName || 'Procedimento a definir'}</span>
+                          </div>
+                          <span style={{ borderRadius: '8px', padding: '7px 10px', background: appointment.source === 'whatsapp' ? 'rgba(21,171,209,0.14)' : 'rgba(255,255,255,0.06)', color: appointment.source === 'whatsapp' ? '#D9F7FF' : 'rgba(244,251,248,0.72)', fontSize: '12px' }}>{appointment.source === 'whatsapp' ? 'WhatsApp' : 'Painel'}</span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div style={{ background: 'rgba(9,26,36,0.88)', borderRadius: '8px', padding: isMobile ? '14px' : '18px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                <strong style={{ display: 'block', marginBottom: '14px', fontSize: '18px' }}>Próximas vagas</strong>
+                {upcomingHighlights.length === 0 ? (
+                  <p style={{ margin: 0, color: 'rgba(244,251,248,0.62)', lineHeight: 1.7 }}>Ainda não existem datas abertas com horário livre.</p>
+                ) : (
+                  <div style={{ display: 'grid', gap: '8px' }}>
+                    {upcomingHighlights.slice(0, 5).map((date) => {
+                      const freeSlotsCount = (freeTimeSlotsByDate[date] || []).length;
+                      return (
+                        <button key={date} type="button" onClick={() => jumpToDate(date)} style={{ textAlign: 'left', padding: '12px', borderRadius: '8px', background: 'rgba(21,171,209,0.10)', border: '1px solid rgba(21,171,209,0.20)', color: '#D9F7FF', cursor: 'pointer' }}>
+                          <strong style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>{formatDateLabel(date)}</strong>
+                          <span style={{ fontSize: '12px', color: freeSlotsCount === 1 ? '#D9F7FF' : 'rgba(244,251,248,0.72)' }}>{freeSlotsCount === 1 ? 'Última vaga disponível' : `${freeSlotsCount} horário(s) livre(s)`}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
-          {!adminScheduleOnly ? (
-            <div>
+          <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: '14px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '14px' }}>
                 <strong style={{ display: 'block', fontSize: '18px' }}>Pacientes</strong>
                 {lastConfirmation ? <ActionButton onClick={copyLastConfirmation}>Copiar confirmação</ActionButton> : null}
@@ -2029,7 +2040,7 @@ export default function AdminPanel() {
               ) : (
                 <div style={{ display: 'grid', gap: '10px' }}>
                   {filteredAppointments.map((appointment) => (
-                    <button key={appointment.id} type="button" onClick={() => openAppointmentDetails(appointment.id)} style={{ textAlign: 'left', background: appointment.status === 'cancelado' ? 'rgba(231,177,177,0.08)' : 'rgba(9,26,36,0.92)', borderRadius: '8px', padding: '14px', border: appointment.status === 'cancelado' ? '1px solid rgba(231,177,177,0.18)' : '1px solid rgba(255,255,255,0.05)', color: '#FFFFFF', cursor: 'pointer' }}>
+                    <button key={appointment.id} type="button" onClick={() => openAppointmentDetails(appointment.id)} style={{ textAlign: 'left', background: appointment.status === 'cancelado' ? 'rgba(231,177,177,0.08)' : 'rgba(9,26,36,0.88)', borderRadius: '8px', padding: '14px', border: appointment.status === 'cancelado' ? '1px solid rgba(231,177,177,0.18)' : '1px solid rgba(255,255,255,0.05)', color: '#FFFFFF', cursor: 'pointer' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
                         <div>
                           <strong style={{ display: 'block', fontSize: '16px' }}>{appointment.fullName}</strong>
@@ -2042,7 +2053,6 @@ export default function AdminPanel() {
                 </div>
               )}
             </div>
-          ) : null}
         </SectionCard>
 
         {isAdmin ? (
