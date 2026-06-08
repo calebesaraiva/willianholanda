@@ -65,6 +65,7 @@ const WHATSAPP_PATIENT_SAME_DAY_TEMPLATE_NAME = process.env.WHATSAPP_PATIENT_SAM
 const WHATSAPP_PATIENT_TEMPLATE_LANGUAGE = process.env.WHATSAPP_PATIENT_TEMPLATE_LANGUAGE || 'pt_BR';
 const WHATSAPP_PATIENT_FALLBACK_TEXT_ENABLED = String(process.env.WHATSAPP_PATIENT_FALLBACK_TEXT_ENABLED || '').trim() === 'true';
 const WHATSAPP_SESSION_NUDGE_MINUTES = Number(process.env.WHATSAPP_SESSION_NUDGE_MINUTES || 20);
+const WHATSAPP_SESSION_MAX_NUDGES = Number(process.env.WHATSAPP_SESSION_MAX_NUDGES || 3);
 const WHATSAPP_SESSION_EXPIRE_HOURS = Number(process.env.WHATSAPP_SESSION_EXPIRE_HOURS || 12);
 const DATA_DIR = path.resolve(ROOT_DIR, process.env.DATA_DIR || path.join('server', 'data-willian-holanda'));
 const ARCHIVE_DIR = path.join(DATA_DIR, 'patient-archives');
@@ -484,6 +485,14 @@ function saveWhatsAppSession(phoneNumber, step, draft = {}) {
       updated_at = excluded.updated_at
   `).run(normalizedPhone, step, JSON.stringify(draft || {}), nowIso());
 
+  return getWhatsAppSession(normalizedPhone);
+}
+
+function touchWhatsAppSession(phoneNumber) {
+  const normalizedPhone = normalizePhoneNumber(phoneNumber);
+  if (!normalizedPhone) return null;
+
+  db.prepare('UPDATE whatsapp_sessions SET updated_at = ? WHERE phone_number = ?').run(nowIso(), normalizedPhone);
   return getWhatsAppSession(normalizedPhone);
 }
 
@@ -2452,6 +2461,37 @@ function buildSessionResumeMessage(session) {
   ].join('\n');
 }
 
+function getSessionNudgeCount(session) {
+  const baseKey = `session_nudge:${session.phoneNumber}:${session.updatedAt}`;
+  const row = db.prepare(`
+    SELECT COUNT(*) AS total
+    FROM whatsapp_automation_events
+    WHERE phone_number = ?
+      AND event_type = 'session_nudge'
+      AND (notification_key = ? OR notification_key LIKE ?)
+  `).get(normalizePhoneNumber(session.phoneNumber), baseKey, `${baseKey}:%`);
+
+  return row?.total || 0;
+}
+
+function buildSessionNudgeMessage(session, nudgeNumber) {
+  const remaining = Math.max(WHATSAPP_SESSION_MAX_NUDGES - nudgeNumber, 0);
+  const lines = [
+    'Oi, voce ainda esta ai?',
+    '',
+    buildSessionResumeMessage(session),
+  ];
+
+  if (remaining > 0) {
+    lines.push('', `Vou aguardar sua resposta. Depois de mais ${remaining} aviso(s), encerro esse atendimento automaticamente.`);
+  } else {
+    lines.push('', 'Como nao tive retorno, vou encerrar este atendimento agora. Nenhum horario foi reservado.');
+    lines.push('Quando quiser recomecar, envie OI ou MENU.');
+  }
+
+  return lines.join('\n');
+}
+
 function normalizeOptionalNote(value) {
   const normalized = normalizeCommandKey(value);
   return normalized === 'pular' || normalized === 'nao' || normalized === 'nenhuma' ? '' : String(value || '').trim();
@@ -2904,6 +2944,29 @@ function executeEnhancedGuidedWhatsAppFlow(session, text, sender) {
   const schedule = getSchedule();
   const datesWithFreeSlots = getDatesWithFreeSlots(schedule);
   const draft = { ...(session?.draft || {}) };
+
+  if (String(session?.step || '').startsWith('consult_')) {
+    session = { ...session, step: 'name' };
+    Object.assign(draft, {
+      source: draft.source || sender.source || 'meta',
+      type: 'appointment',
+      typeLabel: 'Agendamento de consulta',
+      flowType: 'consult_appointment',
+      procedureName: 'Consulta gastroenterologica',
+      lockProcedure: true,
+    });
+  }
+
+  if (String(session?.step || '').startsWith('exam_')) {
+    session = { ...session, step: 'name' };
+    Object.assign(draft, {
+      source: draft.source || sender.source || 'meta',
+      type: 'appointment',
+      typeLabel: 'Agendamento de exame',
+      flowType: 'exam_appointment',
+      procedurePrompt: 'Qual exame deseja agendar? Exemplo: Endoscopia ou Colonoscopia.',
+    });
+  }
 
   if (normalizedMessage === 'cancelarfluxo') {
     clearWhatsAppSession(sender.phoneNumber);
@@ -3711,6 +3774,7 @@ async function processIncomingWhatsAppMessage({
     if (activeSession && ['human_handoff', 'payment_interest'].includes(command.type)) {
       outcome = executeEnhancedWhatsAppCommand(command, sender);
     } else if (activeSession && !/^(ajuda|menu|oi|ola|bom dia|boa tarde|boa noite|help)\b/i.test(String(text || '').trim())) {
+      touchWhatsAppSession(sender.phoneNumber);
       outcome = executeEnhancedGuidedWhatsAppFlow(activeSession, text, sender);
       if (getMinutesSince(activeSession.updatedAt) >= WHATSAPP_SESSION_NUDGE_MINUTES) {
         outcome.replyText = `${buildSessionResumeMessage(activeSession)}\n\n${outcome.replyText}`;
@@ -3936,21 +4000,32 @@ async function runWhatsAppAutomationMaintenance() {
     const minutesSince = getMinutesSince(session.updatedAt);
     if (minutesSince < WHATSAPP_SESSION_NUDGE_MINUTES) continue;
 
-    const nudgeKey = `session_nudge:${session.phoneNumber}:${session.updatedAt}`;
-    if (!reserveAutomationEvent(nudgeKey, 'session_nudge', session.phoneNumber, '', { step: session.step })) {
+    const sentNudges = getSessionNudgeCount(session);
+    if (sentNudges >= WHATSAPP_SESSION_MAX_NUDGES) {
+      clearWhatsAppSession(session.phoneNumber);
+      continue;
+    }
+
+    const nudgeNumber = sentNudges + 1;
+    const nudgeKey = `session_nudge:${session.phoneNumber}:${session.updatedAt}:${nudgeNumber}`;
+    if (!reserveAutomationEvent(nudgeKey, 'session_nudge', session.phoneNumber, '', {
+      step: session.step,
+      nudgeNumber,
+      sessionUpdatedAt: session.updatedAt,
+    })) {
       continue;
     }
 
     const sessionSource = session.draft?.source || 'meta';
     if (!shouldDeliverWhatsAppSource(sessionSource)) continue;
 
-    const body = [
-      'Seu atendimento ficou pausado, mas posso continuar de onde paramos.',
-      buildSessionResumeMessage(session),
-    ].join('\n\n');
+    const body = buildSessionNudgeMessage(session, nudgeNumber);
 
     try {
       const payload = await sendWhatsAppTextMessage(session.phoneNumber, body);
+      if (nudgeNumber >= WHATSAPP_SESSION_MAX_NUDGES) {
+        clearWhatsAppSession(session.phoneNumber);
+      }
       logWhatsAppEvent({
         direction: 'outbound',
         phoneNumber: session.phoneNumber,
@@ -3961,6 +4036,8 @@ async function runWhatsAppAutomationMaintenance() {
         details: {
           source: 'session_nudge',
           step: session.step,
+          nudgeNumber,
+          sessionClosed: nudgeNumber >= WHATSAPP_SESSION_MAX_NUDGES,
         },
       });
     } catch (error) {
