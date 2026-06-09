@@ -2464,6 +2464,90 @@ function buildHumanHandoffMessage() {
   ].join('\n');
 }
 
+function buildPaymentTransferMessage() {
+  return [
+    'Certo.',
+    '',
+    'Vou chamar a equipe para finalizar o pagamento e continuar seu atendimento por aqui.',
+  ].join('\n');
+}
+
+function buildNoReplyOutcome(action, details = {}) {
+  return {
+    replyText: '',
+    action,
+    noReply: true,
+    details,
+  };
+}
+
+function shouldSendHumanTransferMessage(session) {
+  const draft = session?.draft || {};
+  const status = String(draft.conversationStatus || '').trim();
+  const silentStatuses = ['assigned_to_agent', 'waiting_human', 'transferred_to_human', 'paused_bot'];
+
+  if (silentStatuses.includes(status)) return false;
+  if (draft.humanTransferMessageSent) return false;
+  if (draft.assignedAgentId) return false;
+  if (session?.step === 'human_handoff') return false;
+
+  return true;
+}
+
+function markHumanTransferSession(phoneNumber, draft = {}, extra = {}) {
+  return saveWhatsAppSession(phoneNumber, 'human_handoff', {
+    ...(draft || {}),
+    ...(extra || {}),
+    conversationStatus: extra.conversationStatus || draft.conversationStatus || 'waiting_human',
+    humanTransferMessageSent: true,
+    humanTransferSentAt: draft.humanTransferSentAt || nowIso(),
+    botPaused: true,
+  });
+}
+
+function buildHumanTransferOutcome(command, sender, existingSession = null) {
+  const existingDraft = existingSession?.draft || {};
+  const type = command.type === 'payment_interest' ? 'payment_interest' : 'human_handoff';
+
+  if (!shouldSendHumanTransferMessage(existingSession)) {
+    return buildNoReplyOutcome('human_handoff_silent', {
+      reason: 'human_transfer_already_active',
+      conversationStatus: existingDraft.conversationStatus || '',
+    });
+  }
+
+  const transferDraft = markHumanTransferSession(sender.phoneNumber, existingDraft, {
+    source: sender.source || existingDraft.source || 'meta',
+    intent: type,
+  })?.draft || {};
+
+  if (type === 'payment_interest') {
+    return {
+      replyText: buildPaymentTransferMessage(),
+      action: 'payment_interest',
+      lead: {
+        type: 'payment_interest',
+        typeLabel: 'Cliente quer pagar ou fechar atendimento',
+        contactPhone: sender.phoneNumber,
+        notes: 'Cliente demonstrou interesse em pagar ou fechar atendimento.',
+      },
+      details: { conversationStatus: transferDraft.conversationStatus || 'waiting_human' },
+    };
+  }
+
+  return {
+    replyText: buildHumanHandoffMessage(),
+    action: 'human_handoff',
+    lead: {
+      type: 'human_handoff',
+      typeLabel: 'Cliente quer falar com atendente',
+      contactPhone: sender.phoneNumber,
+      notes: 'Cliente pediu para falar com atendente.',
+    },
+    details: { conversationStatus: transferDraft.conversationStatus || 'waiting_human' },
+  };
+}
+
 function buildSessionResumeMessage(session) {
   const stepLabels = {
     consult_full_name: 'nome completo',
@@ -2869,21 +2953,7 @@ function executeWhatsAppCommand(command, sender) {
   }
 
   if (command.type === 'payment_interest') {
-    saveWhatsAppSession(sender.phoneNumber, 'human_handoff', { source: sender.source || 'meta', intent: 'payment_interest' });
-    return {
-      replyText: [
-        'Certo.',
-        '',
-        'Vou chamar a equipe para finalizar o pagamento e continuar seu atendimento por aqui.',
-      ].join('\n'),
-      action: 'payment_interest',
-      lead: {
-        type: 'payment_interest',
-        typeLabel: 'Cliente quer pagar ou fechar atendimento',
-        contactPhone: sender.phoneNumber,
-        notes: 'Cliente demonstrou interesse em pagar ou fechar atendimento.',
-      },
-    };
+    return buildHumanTransferOutcome(command, sender, getWhatsAppSession(sender.phoneNumber));
   }
 
   if (command.type === 'clinic_info') {
@@ -3023,10 +3093,10 @@ function executeEnhancedGuidedWhatsAppFlow(session, text, sender) {
   }
 
   if (session.step === 'human_handoff') {
-    return {
-      replyText: buildHumanHandoffMessage(),
-      action: 'human_handoff_waiting',
-    };
+    return buildNoReplyOutcome('human_handoff_silent', {
+      reason: 'waiting_human',
+      conversationStatus: draft.conversationStatus || 'waiting_human',
+    });
   }
 
   if (session.step === 'surgery_menu') {
@@ -3035,8 +3105,7 @@ function executeEnhancedGuidedWhatsAppFlow(session, text, sender) {
       return { replyText: buildSurgeryQuoteStartMessage(), action: 'surgery_quote_start' };
     }
     if (normalizedMessage === '2' || normalizedMessage === '5' || normalizedMessage.includes('atendente')) {
-      saveWhatsAppSession(sender.phoneNumber, 'human_handoff', { source: draft.source || 'meta' });
-      return { replyText: buildHumanHandoffMessage(), action: 'human_handoff' };
+      return buildHumanTransferOutcome({ type: 'human_handoff' }, sender, session);
     }
     return { replyText: buildSurgeryInfoMessage(), action: 'surgery_info_retry' };
   }
@@ -3540,21 +3609,7 @@ function executeEnhancedWhatsAppCommand(command, sender) {
   }
 
   if (command.type === 'payment_interest') {
-    saveWhatsAppSession(sender.phoneNumber, 'human_handoff', { source: sender.source || 'meta', intent: 'payment_interest' });
-    return {
-      replyText: [
-        'Certo.',
-        '',
-        'Vou chamar a equipe para finalizar o pagamento e continuar seu atendimento por aqui.',
-      ].join('\n'),
-      action: 'payment_interest',
-      lead: {
-        type: 'payment_interest',
-        typeLabel: 'Cliente quer pagar ou fechar atendimento',
-        contactPhone: sender.phoneNumber,
-        notes: 'Cliente demonstrou interesse em pagar ou fechar atendimento.',
-      },
-    };
+    return buildHumanTransferOutcome(command, sender, getWhatsAppSession(sender.phoneNumber));
   }
 
   if (command.type === 'clinic_info') {
@@ -3568,8 +3623,7 @@ function executeEnhancedWhatsAppCommand(command, sender) {
   }
 
   if (command.type === 'human_handoff') {
-    saveWhatsAppSession(sender.phoneNumber, 'human_handoff', { source: sender.source || 'meta' });
-    return { replyText: buildHumanHandoffMessage(), action: 'human_handoff' };
+    return buildHumanTransferOutcome(command, sender, getWhatsAppSession(sender.phoneNumber));
   }
 
   if (command.type === 'list_dates') {
@@ -3744,7 +3798,7 @@ async function processIncomingWhatsAppMessage({
   };
   const dedupPayload = { from, profileName, text, source };
 
-  if (source === 'meta' && metaMessageId && !reserveInboundMetaMessage(metaMessageId, sender.phoneNumber, text, dedupPayload)) {
+  if (metaMessageId && !reserveInboundMetaMessage(metaMessageId, sender.phoneNumber, text, dedupPayload)) {
     logWhatsAppEvent({
       direction: 'inbound',
       phoneNumber: sender.phoneNumber,
@@ -3779,7 +3833,7 @@ async function processIncomingWhatsAppMessage({
       details: { source, duplicateTextWindowSeconds: 15 },
     });
 
-    if (source === 'meta' && metaMessageId) {
+    if (metaMessageId) {
       completeInboundMetaMessage(metaMessageId, 'processed');
     }
 
@@ -3817,7 +3871,12 @@ async function processIncomingWhatsAppMessage({
 
   let outcome;
   try {
-    if (activeSession && ['human_handoff', 'payment_interest'].includes(command.type)) {
+    if (activeSession?.step === 'human_handoff') {
+      outcome = buildNoReplyOutcome('human_handoff_silent', {
+        reason: 'waiting_human',
+        conversationStatus: activeSession.draft?.conversationStatus || 'waiting_human',
+      });
+    } else if (activeSession && ['human_handoff', 'payment_interest'].includes(command.type)) {
       outcome = executeEnhancedWhatsAppCommand(command, sender);
     } else if (activeSession && !/^(ajuda|menu|oi|ola|bom dia|boa tarde|boa noite|help)\b/i.test(String(text || '').trim())) {
       touchWhatsAppSession(sender.phoneNumber);
@@ -3851,7 +3910,7 @@ async function processIncomingWhatsAppMessage({
       outcome = executeEnhancedWhatsAppCommand(command, sender);
     }
   } catch (error) {
-    if (source === 'meta' && metaMessageId) {
+    if (metaMessageId) {
       completeInboundMetaMessage(metaMessageId, 'failed');
     }
     outcome = {
@@ -3863,7 +3922,8 @@ async function processIncomingWhatsAppMessage({
 
   let outboundMetaMessageId = '';
   let deliveryStatus = 'simulated';
-  if (shouldDeliverWhatsAppSource(source)) {
+  const hasReplyText = Boolean(String(outcome.replyText || '').trim());
+  if (shouldDeliverWhatsAppSource(source) && hasReplyText) {
     try {
       await sleep(randomInt(1000, 3000));
       const sendResult = await sendWhatsAppTextMessage(sender.replyTo || sender.phoneNumber, outcome.replyText);
@@ -3873,6 +3933,8 @@ async function processIncomingWhatsAppMessage({
       outcome.error = outcome.error || error;
       deliveryStatus = 'failed';
     }
+  } else if (!hasReplyText) {
+    deliveryStatus = 'no_reply';
   }
 
   logWhatsAppEvent({
@@ -3888,11 +3950,13 @@ async function processIncomingWhatsAppMessage({
       source,
       action: outcome.action,
       commandType: command.type,
+      noReply: !hasReplyText,
+      ...(outcome.details || {}),
       error: outcome.error?.message || '',
     },
   });
 
-  if (source === 'meta' && metaMessageId) {
+  if (metaMessageId) {
     completeInboundMetaMessage(metaMessageId, outcome.error ? 'failed' : 'processed');
   }
 
@@ -3916,7 +3980,8 @@ async function processIncomingWhatsAppMessage({
     action: outcome.action,
     replyText: outcome.replyText,
     appointment: outcome.appointment || null,
-    delivered: shouldDeliverWhatsAppSource(source),
+    delivered: shouldDeliverWhatsAppSource(source) && hasReplyText,
+    noReply: !hasReplyText,
   };
 }
 
@@ -4374,6 +4439,8 @@ app.post('/api/admin/whatsapp/simulate-inbound', authRequired, adminRequired, as
   const from = normalizePhoneNumber(req.body?.from);
   const text = String(req.body?.text || '').trim();
   const profileName = String(req.body?.profileName || 'Simulação').trim();
+  const metaMessageId = String(req.body?.metaMessageId || '').trim();
+  const source = String(req.body?.source || 'simulation').trim() || 'simulation';
 
   if (!from || !text) {
     return res.status(400).json({ error: 'Informe telefone e mensagem para simular o WhatsApp.' });
@@ -4384,7 +4451,8 @@ app.post('/api/admin/whatsapp/simulate-inbound', authRequired, adminRequired, as
       from,
       profileName,
       text,
-      source: 'simulation',
+      metaMessageId,
+      source,
     });
 
     return res.json({
