@@ -1708,21 +1708,171 @@ function formatInteractiveFallback(body, options = [], footer = '') {
   return lines.join('\n');
 }
 
+function normalizeInteractiveRows(rows = []) {
+  return rows
+    .map((row, index) => {
+      const id = String(row.id || row.rowId || row.value || row.title || row.label || index + 1).trim();
+      const title = String(row.title || row.label || row.value || row.id || index + 1).trim();
+      const description = String(row.description || '').trim();
+      if (!id || !title) return null;
+      return { rowId: id, title, description };
+    })
+    .filter(Boolean);
+}
+
+function normalizeInteractiveSections(sections = []) {
+  return sections
+    .map((section) => {
+      const rows = normalizeInteractiveRows(section.rows || section.options || []);
+      if (!rows.length) return null;
+      return {
+        title: String(section.title || 'Opcoes').trim(),
+        rows,
+      };
+    })
+    .filter(Boolean);
+}
+
+function flattenInteractiveSections(sections = []) {
+  return normalizeInteractiveSections(sections).flatMap((section) => section.rows);
+}
+
 function sendTextFallback(to, body) {
   return sendWhatsAppTextMessage(to, body);
 }
 
-function sendButtonMessage(to, { body, buttons = [], footer = '' } = {}) {
-  return sendTextFallback(to, formatInteractiveFallback(body, buttons, footer));
+async function sendInteractiveButtons(to, body, buttons = []) {
+  const normalizedButtons = normalizeInteractiveRows(buttons).slice(0, 3);
+  const fallbackText = formatInteractiveFallback(body, normalizedButtons.map((button) => ({
+    label: button.title,
+  })));
+
+  try {
+    if (isTemporaryQrDeliveryMode()) {
+      if (!temporaryWhatsAppQrBot?.sendInteractiveButtons) {
+        return sendTextFallback(to, fallbackText);
+      }
+      return await temporaryWhatsAppQrBot.sendInteractiveButtons(to, { body, buttons: normalizedButtons });
+    }
+
+    if (!WHATSAPP_ACCESS_TOKEN || !WHATSAPP_PHONE_NUMBER_ID) {
+      return sendTextFallback(to, fallbackText);
+    }
+
+    return await fetch(`https://graph.facebook.com/${WHATSAPP_GRAPH_VERSION}/${WHATSAPP_PHONE_NUMBER_ID}/messages`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${WHATSAPP_ACCESS_TOKEN}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp',
+        to: normalizePhoneNumber(to),
+        type: 'interactive',
+        interactive: {
+          type: 'button',
+          body: { text: String(body || '') },
+          action: {
+            buttons: normalizedButtons.map((button) => ({
+              type: 'reply',
+              reply: {
+                id: button.rowId,
+                title: button.title.slice(0, 20),
+              },
+            })),
+          },
+        },
+      }),
+    }).then(async (response) => {
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const error = new Error(payload?.error?.message || 'Falha ao enviar botoes pelo WhatsApp.');
+        error.statusCode = response.status;
+        error.payload = payload;
+        throw error;
+      }
+      return payload;
+    });
+  } catch (error) {
+    return sendTextFallback(to, fallbackText);
+  }
 }
 
-function sendListMessage(to, { body, sections = [], footer = '' } = {}) {
-  const options = sections.flatMap((section) => section?.rows || section?.options || []);
-  return sendTextFallback(to, formatInteractiveFallback(body, options, footer));
+async function sendInteractiveList(to, title, body, buttonText, sections = []) {
+  const normalizedSections = normalizeInteractiveSections(sections);
+  const fallbackText = formatInteractiveFallback(body, flattenInteractiveSections(normalizedSections).map((row) => ({
+    label: row.description ? `${row.title} - ${row.description}` : row.title,
+  })));
+
+  try {
+    if (isTemporaryQrDeliveryMode()) {
+      if (!temporaryWhatsAppQrBot?.sendInteractiveList) {
+        return sendTextFallback(to, fallbackText);
+      }
+      return await temporaryWhatsAppQrBot.sendInteractiveList(to, {
+        title,
+        body,
+        buttonText,
+        sections: normalizedSections,
+      });
+    }
+
+    if (!WHATSAPP_ACCESS_TOKEN || !WHATSAPP_PHONE_NUMBER_ID) {
+      return sendTextFallback(to, fallbackText);
+    }
+
+    return await fetch(`https://graph.facebook.com/${WHATSAPP_GRAPH_VERSION}/${WHATSAPP_PHONE_NUMBER_ID}/messages`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${WHATSAPP_ACCESS_TOKEN}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp',
+        to: normalizePhoneNumber(to),
+        type: 'interactive',
+        interactive: {
+          type: 'list',
+          header: title ? { type: 'text', text: String(title).slice(0, 60) } : undefined,
+          body: { text: String(body || '') },
+          action: {
+            button: String(buttonText || 'Selecionar').slice(0, 20),
+            sections: normalizedSections.map((section) => ({
+              title: section.title.slice(0, 24),
+              rows: section.rows.map((row) => ({
+                id: row.rowId,
+                title: row.title.slice(0, 24),
+                description: row.description.slice(0, 72),
+              })),
+            })),
+          },
+        },
+      }),
+    }).then(async (response) => {
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const error = new Error(payload?.error?.message || 'Falha ao enviar lista pelo WhatsApp.');
+        error.statusCode = response.status;
+        error.payload = payload;
+        throw error;
+      }
+      return payload;
+    });
+  } catch (error) {
+    return sendTextFallback(to, fallbackText);
+  }
 }
 
-function sendMenuMessage(to, { body, options = [], footer = '' } = {}) {
-  return sendListMessage(to, { body, sections: [{ rows: options }], footer });
+function sendButtonMessage(to, { body, buttons = [] } = {}) {
+  return sendInteractiveButtons(to, body, buttons);
+}
+
+function sendListMessage(to, { title = '', body, buttonText = 'Selecionar', sections = [] } = {}) {
+  return sendInteractiveList(to, title, body, buttonText, sections);
+}
+
+function sendMenuMessage(to, { body, options = [] } = {}) {
+  return sendInteractiveList(to, 'Como podemos ajudar?', body, 'Ver opcoes', [{ title: 'Atendimento', rows: options }]);
 }
 
 function buildAvailableDatesMessage() {
@@ -2136,6 +2286,150 @@ function buildProfessionalGuidedSummary(draft) {
     '2. Corrigir',
     '3. Cancelar',
   ].join('\n');
+}
+
+function buildMainMenuInteractive() {
+  return {
+    type: 'list',
+    title: 'Como podemos ajudar?',
+    body: 'Ola! Seja bem-vindo(a) a WR Gastro 😊\n\nComo podemos ajudar?',
+    buttonText: 'Ver opcoes',
+    sections: [{
+      title: 'Atendimento',
+      rows: [
+        { id: '1', title: 'Marcar consulta' },
+        { id: '2', title: 'Agendar exame' },
+        { id: '3', title: 'Ver valores' },
+        { id: '4', title: 'Orcamento de cirurgia' },
+        { id: '5', title: 'Falar com atendente' },
+      ],
+    }],
+  };
+}
+
+function buildPricingInteractive() {
+  return {
+    type: 'list',
+    title: 'Deseja continuar?',
+    body: buildPricingInfoMessage(),
+    buttonText: 'Escolher',
+    sections: [{
+      title: 'Opcoes',
+      rows: [
+        { id: '1', title: 'Marcar consulta' },
+        { id: '2', title: 'Agendar exame' },
+        { id: '3', title: 'Pagar ou fechar' },
+        { id: '4', title: 'Falar com atendente' },
+        { id: '5', title: 'Voltar ao menu' },
+      ],
+    }],
+  };
+}
+
+function buildDatesMenuInteractive() {
+  return {
+    type: 'list',
+    title: 'Datas disponiveis',
+    body: buildProfessionalDatesMessage(),
+    buttonText: 'Escolher',
+    sections: [{
+      title: 'Proximo passo',
+      rows: [
+        { id: '1', title: 'Agendar consulta' },
+        { id: '2', title: 'Agendar exame' },
+        { id: '3', title: 'Remarcar' },
+        { id: '4', title: 'Voltar ao menu' },
+      ],
+    }],
+  };
+}
+
+function buildScheduleDateInteractive(body = 'Escolha uma data disponivel') {
+  const schedule = getSchedule();
+  const freeTimeSlotsByDate = getFreeTimeSlotsByDate(schedule);
+  const rows = getDatesWithFreeSlots(schedule).slice(0, 10).map((date, index) => ({
+    id: String(index + 1),
+    title: date,
+    description: `${freeTimeSlotsByDate[date]?.length || 0} horario(s) livre(s)`,
+  }));
+  if (!rows.length) return null;
+  return {
+    type: 'list',
+    title: 'Escolha uma data disponivel',
+    body,
+    buttonText: 'Ver datas',
+    sections: [{ title: 'Datas', rows }],
+  };
+}
+
+function buildScheduleTimeInteractive(date, body = 'Escolha um horario') {
+  const schedule = getSchedule();
+  const freeTimeSlotsByDate = getFreeTimeSlotsByDate(schedule);
+  const rows = (freeTimeSlotsByDate[date] || []).slice(0, 10).map((time, index) => ({
+    id: String(index + 1),
+    title: time,
+  }));
+  if (!rows.length) return null;
+  return {
+    type: 'list',
+    title: 'Escolha um horario',
+    body,
+    buttonText: 'Ver horarios',
+    sections: [{ title: date || 'Horarios', rows }],
+  };
+}
+
+function buildExamTypeInteractive() {
+  return {
+    type: 'list',
+    title: 'Qual exame deseja agendar?',
+    body: 'Qual exame deseja agendar?',
+    buttonText: 'Escolher exame',
+    sections: [{
+      title: 'Exames',
+      rows: [
+        { id: '1', title: 'Endoscopia' },
+        { id: '2', title: 'Colonoscopia' },
+        { id: '3', title: 'Outro exame' },
+      ],
+    }],
+  };
+}
+
+function buildConfirmationButtons(body) {
+  return {
+    type: 'buttons',
+    body,
+    buttons: [
+      { id: 'confirmar', title: 'Confirmar' },
+      { id: 'corrigir', title: 'Corrigir' },
+      { id: 'cancelar', title: 'Cancelar' },
+    ],
+  };
+}
+
+function buildNotesButtons(body = 'Gostaria de adicionar alguma observacao?') {
+  return {
+    type: 'buttons',
+    body,
+    buttons: [
+      { id: 'adicionar', title: 'Adicionar' },
+      { id: 'pular', title: 'Pular' },
+      { id: 'cancelar', title: 'Cancelar' },
+    ],
+  };
+}
+
+function buildSurgeryButtons() {
+  return {
+    type: 'buttons',
+    body: buildSurgeryInfoMessage(),
+    buttons: [
+      { id: '1', title: 'Solicitar orcamento' },
+      { id: '2', title: 'Atendente' },
+      { id: '3', title: 'Voltar' },
+    ],
+  };
 }
 
 function buildRescheduleStartMessage() {
@@ -3546,7 +3840,7 @@ function executeEnhancedGuidedWhatsAppFlow(session, text, sender) {
     if (draft.lockProcedure && draft.procedureName) {
       saveWhatsAppSession(sender.phoneNumber, 'notes', draft);
       return {
-        replyText: 'Se quiser adicionar observacoes, envie agora. Se nao, responda PULAR.',
+        replyText: 'Gostaria de adicionar alguma observacao?',
         action: 'guided_collect_notes',
       };
     }
@@ -3559,16 +3853,83 @@ function executeEnhancedGuidedWhatsAppFlow(session, text, sender) {
   }
 
   if (session.step === 'procedure') {
-    draft.procedureName = normalizedMessage === 'pular' ? '' : message;
+    if (draft.flowType === 'exam_appointment') {
+      if (normalizedMessage === '1' || normalizedMessage.includes('endoscopia')) {
+        draft.procedureName = 'Endoscopia';
+      } else if (normalizedMessage === '2' || normalizedMessage.includes('colonoscopia')) {
+        draft.procedureName = 'Colonoscopia';
+      } else if (normalizedMessage === '3' || normalizedMessage.includes('outro')) {
+        saveWhatsAppSession(sender.phoneNumber, 'procedure_other', draft);
+        return {
+          replyText: 'Digite o nome do exame que deseja agendar.',
+          action: 'guided_collect_procedure_other',
+        };
+      } else if (message.length < 3) {
+        return {
+          replyText: 'Escolha uma opcao da lista ou digite o nome do exame.',
+          action: 'guided_collect_procedure',
+        };
+      } else {
+        draft.procedureName = message;
+      }
+    } else {
+      draft.procedureName = normalizedMessage === 'pular' ? '' : message;
+    }
     saveWhatsAppSession(sender.phoneNumber, 'notes', draft);
     return {
-      replyText: 'Se quiser adicionar observacoes, envie agora. Se nao, responda PULAR.',
+      replyText: 'Gostaria de adicionar alguma observacao?',
+      action: 'guided_collect_notes',
+    };
+  }
+
+  if (session.step === 'procedure_other') {
+    if (message.length < 3) {
+      return {
+        replyText: 'Digite o nome do exame que deseja agendar.',
+        action: 'guided_collect_procedure_other',
+      };
+    }
+    draft.procedureName = message;
+    saveWhatsAppSession(sender.phoneNumber, 'notes', draft);
+    return {
+      replyText: 'Gostaria de adicionar alguma observacao?',
       action: 'guided_collect_notes',
     };
   }
 
   if (session.step === 'notes') {
-    draft.notes = normalizedMessage === 'pular' ? '' : message;
+    if (['3', 'cancelar', 'cancelarfluxo', 'sair', 'encerrar'].includes(normalizedMessage)) {
+      clearWhatsAppSession(sender.phoneNumber);
+      return {
+        replyText: 'Fluxo cancelado com sucesso. Quando quiser retomar, envie MENU.',
+        action: 'guided_cancelled',
+      };
+    }
+
+    if (['1', 'adicionar'].includes(normalizedMessage)) {
+      saveWhatsAppSession(sender.phoneNumber, 'notes_text', draft);
+      return {
+        replyText: 'Envie a observacao que deseja adicionar.',
+        action: 'guided_collect_notes_text',
+      };
+    }
+
+    draft.notes = ['2', 'pular', 'nao', 'nenhuma'].includes(normalizedMessage) ? '' : message;
+    saveWhatsAppSession(sender.phoneNumber, 'confirm', draft);
+    return {
+      replyText: buildProfessionalGuidedSummary(draft),
+      action: 'guided_confirm',
+    };
+  }
+
+  if (session.step === 'notes_text') {
+    if (message.length < 2) {
+      return {
+        replyText: 'Envie a observacao que deseja adicionar ou responda PULAR.',
+        action: 'guided_collect_notes_text',
+      };
+    }
+    draft.notes = ['pular', 'nao', 'nenhuma'].includes(normalizedMessage) ? '' : message;
     saveWhatsAppSession(sender.phoneNumber, 'confirm', draft);
     return {
       replyText: buildProfessionalGuidedSummary(draft),
@@ -3977,6 +4338,61 @@ function executeEnhancedWhatsAppCommand(command, sender) {
   return { replyText: buildProfessionalHelpMessage(), action: 'help' };
 }
 
+function buildInteractiveForOutcome(outcome, sender) {
+  const action = String(outcome?.action || '');
+  const session = sender?.phoneNumber ? getWhatsAppSession(sender.phoneNumber) : null;
+  const draft = session?.draft || {};
+
+  if (action === 'help') return buildMainMenuInteractive();
+  if (['pricing_info', 'pricing_info_retry'].includes(action)) return buildPricingInteractive();
+  if (['surgery_info', 'surgery_info_retry'].includes(action)) return buildSurgeryButtons();
+  if (['list_dates', 'list_dates_retry'].includes(action)) return buildDatesMenuInteractive();
+
+  if (['guided_collect_date', 'guided_retry_date', 'reschedule_collect_new_date', 'reschedule_retry_new_date', 'reschedule_correct'].includes(action)) {
+    return buildScheduleDateInteractive(outcome.replyText);
+  }
+
+  if (['guided_collect_time', 'guided_retry_time', 'reschedule_collect_new_time', 'reschedule_retry_new_time'].includes(action)) {
+    return buildScheduleTimeInteractive(draft.date || draft.newDate, outcome.replyText);
+  }
+
+  if (action === 'guided_collect_procedure' && draft.flowType === 'exam_appointment') {
+    return buildExamTypeInteractive();
+  }
+
+  if (action === 'guided_collect_notes') {
+    return buildNotesButtons('Gostaria de adicionar alguma observacao?');
+  }
+
+  if (action === 'guided_confirm') return buildConfirmationButtons(outcome.replyText);
+  if (action === 'reschedule_confirm') return buildConfirmationButtons(outcome.replyText);
+
+  return outcome?.interactive || null;
+}
+
+async function sendWhatsAppOutboundMessage(to, outcome, sender) {
+  const interactive = outcome?.interactive || buildInteractiveForOutcome(outcome, sender);
+  if (interactive?.type === 'list') {
+    return sendInteractiveList(
+      to,
+      interactive.title || '',
+      interactive.body || outcome.replyText || '',
+      interactive.buttonText || 'Selecionar',
+      interactive.sections || []
+    );
+  }
+
+  if (interactive?.type === 'buttons') {
+    return sendInteractiveButtons(
+      to,
+      interactive.body || outcome.replyText || '',
+      interactive.buttons || []
+    );
+  }
+
+  return sendTextFallback(to, outcome.replyText);
+}
+
 async function processIncomingWhatsAppMessage({
   from,
   replyTo = '',
@@ -4149,7 +4565,7 @@ async function processIncomingWhatsAppMessage({
   if (shouldDeliverWhatsAppSource(source) && hasReplyText) {
     try {
       await sleep(randomInt(1000, 3000));
-      const sendResult = await sendTextFallback(sender.replyTo || sender.phoneNumber, outcome.replyText);
+      const sendResult = await sendWhatsAppOutboundMessage(sender.replyTo || sender.phoneNumber, outcome, sender);
       outboundMetaMessageId = sendResult?.messages?.[0]?.id || '';
       deliveryStatus = 'sent';
     } catch (error) {
@@ -4232,6 +4648,19 @@ function processWhatsAppStatusUpdate(statusItem = {}) {
     metaMessageId,
     details,
   });
+}
+
+function extractMetaWebhookMessageText(message = {}) {
+  return String(
+    message.text?.body
+    || message.button?.payload
+    || message.button?.text
+    || message.interactive?.button_reply?.id
+    || message.interactive?.button_reply?.title
+    || message.interactive?.list_reply?.id
+    || message.interactive?.list_reply?.title
+    || ''
+  ).trim();
 }
 
 async function sendPatientAppointmentReminder(appointment, reminderType) {
@@ -4573,13 +5002,14 @@ app.post('/api/whatsapp/webhook', async (req, res) => {
       const statuses = value.statuses || [];
 
       for (const message of messages) {
-        if (message?.type !== 'text') continue;
+        const messageText = extractMetaWebhookMessageText(message);
+        if (!messageText) continue;
         const contact = contacts.find((item) => normalizePhoneNumber(item.wa_id) === normalizePhoneNumber(message.from)) || contacts[0];
         enqueueWhatsAppWebhookJob(async () => {
           await processIncomingWhatsAppMessage({
             from: message.from,
             profileName: contact?.profile?.name || '',
-            text: message.text?.body || '',
+            text: messageText,
             metaMessageId: message.id || '',
             source: 'meta',
           });

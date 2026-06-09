@@ -16,11 +16,39 @@ function buildJid(phoneNumber) {
   return normalized ? `${normalized}@s.whatsapp.net` : '';
 }
 
+function parseInteractiveParams(value) {
+  const rawValue = String(value || '').trim();
+  if (!rawValue) return '';
+
+  try {
+    const parsed = JSON.parse(rawValue);
+    return String(
+      parsed.id
+      || parsed.row_id
+      || parsed.button_id
+      || parsed.selectedRowId
+      || parsed.title
+      || parsed.text
+      || ''
+    ).trim();
+  } catch (_error) {
+    return rawValue;
+  }
+}
+
 function extractMessageText(message = {}) {
   const content = message.message || {};
+  const nativeFlowText = parseInteractiveParams(content.interactiveResponseMessage?.nativeFlowResponseMessage?.paramsJson);
   return String(
     content.conversation
     || content.extendedTextMessage?.text
+    || content.buttonsResponseMessage?.selectedButtonId
+    || content.buttonsResponseMessage?.selectedDisplayText
+    || content.listResponseMessage?.singleSelectReply?.selectedRowId
+    || content.listResponseMessage?.title
+    || content.templateButtonReplyMessage?.selectedId
+    || content.templateButtonReplyMessage?.selectedDisplayText
+    || nativeFlowText
     || content.imageMessage?.caption
     || content.videoMessage?.caption
     || ''
@@ -307,6 +335,78 @@ function startTemporaryWhatsAppQrBot(options = {}) {
             id: sent?.key?.id || `temporary-${Date.now()}`,
           },
         ],
+      };
+    },
+    sendInteractiveList: async (to, { title = '', body = '', buttonText = 'Selecionar', sections = [] } = {}) => {
+      if (isGroupJid(to)) {
+        const error = new Error('Envio para grupos bloqueado. O bot responde apenas conversas privadas.');
+        error.statusCode = 400;
+        throw error;
+      }
+
+      if (!status.connected) {
+        scheduleReconnect('Tentativa de envio com bot desconectado.');
+      }
+      if (!await waitUntilConnected()) {
+        const error = new Error('Bot temporario por QR code ainda nao esta conectado.');
+        error.statusCode = 503;
+        throw error;
+      }
+
+      const jid = buildJid(to);
+      if (!jid) {
+        const error = new Error('Numero de WhatsApp invalido.');
+        error.statusCode = 400;
+        throw error;
+      }
+
+      const sent = await socket.sendMessage(jid, {
+        title: String(title || ''),
+        text: String(body || ''),
+        footer: '',
+        buttonText: String(buttonText || 'Selecionar'),
+        sections,
+      });
+      return {
+        temporary: true,
+        messages: [{ id: sent?.key?.id || `temporary-${Date.now()}` }],
+      };
+    },
+    sendInteractiveButtons: async (to, { body = '', buttons = [] } = {}) => {
+      if (isGroupJid(to)) {
+        const error = new Error('Envio para grupos bloqueado. O bot responde apenas conversas privadas.');
+        error.statusCode = 400;
+        throw error;
+      }
+
+      if (!status.connected) {
+        scheduleReconnect('Tentativa de envio com bot desconectado.');
+      }
+      if (!await waitUntilConnected()) {
+        const error = new Error('Bot temporario por QR code ainda nao esta conectado.');
+        error.statusCode = 503;
+        throw error;
+      }
+
+      const jid = buildJid(to);
+      if (!jid) {
+        const error = new Error('Numero de WhatsApp invalido.');
+        error.statusCode = 400;
+        throw error;
+      }
+
+      const sent = await socket.sendMessage(jid, {
+        text: String(body || ''),
+        buttons: buttons.slice(0, 3).map((button, index) => ({
+          buttonId: String(button.id || button.rowId || button.title || index + 1),
+          buttonText: { displayText: String(button.title || button.label || button.id || index + 1) },
+          type: 1,
+        })),
+        headerType: 1,
+      });
+      return {
+        temporary: true,
+        messages: [{ id: sent?.key?.id || `temporary-${Date.now()}` }],
       };
     },
   };
