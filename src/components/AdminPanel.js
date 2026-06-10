@@ -1203,9 +1203,10 @@ export default function AdminPanel() {
     { key: 'relatorios', label: 'Relatórios' },
     { key: 'configuracoes', label: 'Configurações' },
   ];
-  const agendaPages = ['agenda', 'consultas', 'exames', 'procedimentos'];
+  const typePageMap = { consultas: 'consulta', exames: 'exame', procedimentos: 'procedimento' };
   const activePage = adminSectionLinks.some((item) => item.key === activeAdminPage) ? activeAdminPage : 'dashboard';
-  const showAgendaPage = agendaPages.includes(activePage);
+  const showAgendaPage = activePage === 'agenda';
+  const activeMedicalType = medicalTypeOptions.find((item) => item.key === typePageMap[activePage]) || null;
   const openAdminPage = (key) => {
     setActiveAdminPage(key);
     window.history.replaceState(null, '', `${window.location.pathname}#${key}`);
@@ -1259,6 +1260,22 @@ export default function AdminPanel() {
       .filter((item) => item.status !== 'cancelado' && item.date >= todayDate)
       .slice(0, 5),
     [appointmentsByDate, todayDate]
+  );
+  const activeTypeAppointments = useMemo(() => {
+    if (!activeMedicalType) return [];
+    return activeOperationalAppointments.filter((item) => inferAppointmentType(item).key === activeMedicalType.key);
+  }, [activeMedicalType, activeOperationalAppointments]);
+  const activeTypeTodayAppointments = useMemo(
+    () => activeTypeAppointments.filter((item) => item.date === todayDate),
+    [activeTypeAppointments, todayDate]
+  );
+  const activeTypeWhatsappAppointments = useMemo(
+    () => activeTypeAppointments.filter((item) => item.source === 'whatsapp'),
+    [activeTypeAppointments]
+  );
+  const activeTypePendingAppointments = useMemo(
+    () => activeTypeAppointments.filter((item) => item.status !== 'confirmado' && item.status !== 'concluido'),
+    [activeTypeAppointments]
   );
   const filteredAppointments = useMemo(() => {
     const query = patientSearch.trim().toLowerCase();
@@ -1994,7 +2011,66 @@ export default function AdminPanel() {
                 </div>
               )}
             </div>
-          </SectionCard>
+        </SectionCard>
+        ) : null}
+
+        {activeMedicalType ? (
+        <SectionCard
+          id={`${activeMedicalType.key}-admin`}
+          eyebrow={activeMedicalType.label}
+          title={`${activeMedicalType.label}s agendados`}
+          description={`Acompanhe os pacientes de ${activeMedicalType.label.toLowerCase()}, incluindo os agendamentos feitos automaticamente pelo WhatsApp.`}
+          style={{ padding: sectionPadding }}
+        >
+          <Row minWidth={isMobile ? 150 : 190}>
+            <StatCard label={`Total de ${activeMedicalType.label.toLowerCase()}s`} value={activeTypeAppointments.length} />
+            <StatCard label="Hoje" value={activeTypeTodayAppointments.length} tone={activeTypeTodayAppointments.length ? 'green' : 'white'} />
+            <StatCard label="Via WhatsApp" value={activeTypeWhatsappAppointments.length} tone="white" />
+            <StatCard label="Pendentes" value={activeTypePendingAppointments.length} tone={activeTypePendingAppointments.length ? 'white' : 'green'} />
+          </Row>
+
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+            <ActionButton onClick={() => openAdminPage('agenda')} variant="primary" stretch={isMobile}>Abrir agenda</ActionButton>
+            <ActionButton onClick={handleRefreshPanel} disabled={busyKey === 'refresh'} stretch={isMobile}>{busyKey === 'refresh' ? 'Atualizando...' : 'Atualizar dados'}</ActionButton>
+          </div>
+
+          <div style={{ display: 'grid', gap: '12px' }}>
+            <strong style={{ fontSize: '18px' }}>Pacientes encontrados</strong>
+            {activeTypeAppointments.length === 0 ? (
+              <div style={{ padding: '18px', borderRadius: '16px', background: '#F8FAFC', border: '1px solid #E2E8F0', color: '#64748B', lineHeight: 1.7 }}>
+                Nenhum paciente de {activeMedicalType.label.toLowerCase()} encontrado até agora.
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gap: '10px' }}>
+                {activeTypeAppointments.map((appointment) => {
+                  const statusPalette = getStatusPalette(appointment.status);
+                  return (
+                    <button
+                      key={appointment.id}
+                      type="button"
+                      onClick={() => openAppointmentDetails(appointment.id)}
+                      style={{ textAlign: 'left', background: '#FFFFFF', borderRadius: '16px', padding: '16px', border: '1px solid #E2E8F0', color: '#0F172A', cursor: 'pointer' }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+                        <div>
+                          <strong style={{ display: 'block', fontSize: '16px' }}>{appointment.fullName}</strong>
+                          <span style={{ color: '#475569', fontSize: '13px' }}>
+                            {formatDateLabel(appointment.date)}{appointment.time ? ` às ${appointment.time}` : ''} · {appointment.procedureName || activeMedicalType.label}
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                          <span style={{ borderRadius: '999px', padding: '7px 10px', background: activeMedicalType.background, color: activeMedicalType.color, fontSize: '12px', fontWeight: 800 }}>{activeMedicalType.label}</span>
+                          <span style={{ borderRadius: '999px', padding: '7px 10px', background: appointment.source === 'whatsapp' ? '#EFF6FF' : '#F1F5F9', color: appointment.source === 'whatsapp' ? '#1D4ED8' : '#475569', fontSize: '12px', fontWeight: 800 }}>{appointment.source === 'whatsapp' ? 'WhatsApp' : 'Painel'}</span>
+                          <span style={{ borderRadius: '999px', padding: '7px 10px', background: statusPalette.background, color: statusPalette.color, fontSize: '12px', fontWeight: 800 }}>{statusPalette.label}</span>
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </SectionCard>
         ) : null}
 
         {showAgendaPage ? (
@@ -2236,6 +2312,12 @@ export default function AdminPanel() {
 
         {activePage === 'pacientes' ? (
         <SectionCard id="pacientes-admin" eyebrow="Pacientes" title="Pacientes e agendamentos" description="Busque pacientes, abra detalhes e acompanhe os próximos atendimentos." style={{ padding: sectionPadding }}>
+          <Row minWidth={isMobile ? 150 : 190}>
+            <StatCard label="Pacientes/agendamentos" value={activeOperationalAppointments.length} />
+            <StatCard label="Hoje" value={todayAppointments.length} tone={todayAppointments.length ? 'green' : 'white'} />
+            <StatCard label="Via WhatsApp" value={activeOperationalAppointments.filter((item) => item.source === 'whatsapp').length} tone="white" />
+            <StatCard label="Pendentes" value={pendingAppointments.length} tone={pendingAppointments.length ? 'white' : 'green'} />
+          </Row>
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: '14px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '14px' }}>
               <strong style={{ display: 'block', fontSize: '18px' }}>Pacientes</strong>
