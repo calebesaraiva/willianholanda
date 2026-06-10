@@ -67,6 +67,7 @@ const WHATSAPP_PATIENT_FALLBACK_TEXT_ENABLED = String(process.env.WHATSAPP_PATIE
 const WHATSAPP_SESSION_NUDGE_MINUTES = Number(process.env.WHATSAPP_SESSION_NUDGE_MINUTES || 20);
 const WHATSAPP_SESSION_MAX_NUDGES = Number(process.env.WHATSAPP_SESSION_MAX_NUDGES || 3);
 const WHATSAPP_SESSION_EXPIRE_HOURS = Number(process.env.WHATSAPP_SESSION_EXPIRE_HOURS || 12);
+const WHATSAPP_MANUAL_OUTBOUND_SUPPRESS_HOURS = Number(process.env.WHATSAPP_MANUAL_OUTBOUND_SUPPRESS_HOURS || 12);
 const DATA_DIR = path.resolve(ROOT_DIR, process.env.DATA_DIR || path.join('server', 'data-willian-holanda'));
 const ARCHIVE_DIR = path.join(DATA_DIR, 'patient-archives');
 const SQLITE_PATH = path.join(DATA_DIR, 'willian-holanda.sqlite');
@@ -503,7 +504,11 @@ function clearWhatsAppSession(phoneNumber) {
 }
 
 function getActiveWhatsAppSessionCount() {
-  return db.prepare('SELECT COUNT(*) AS total FROM whatsapp_sessions').get().total || 0;
+  return db.prepare(`
+    SELECT COUNT(*) AS total
+    FROM whatsapp_sessions
+    WHERE step NOT IN ('manual_outbound_guard')
+  `).get().total || 0;
 }
 
 function getAllWhatsAppSessions() {
@@ -523,6 +528,26 @@ function getMinutesSince(isoString) {
   const parsed = parseIsoDate(isoString);
   if (!parsed) return Number.POSITIVE_INFINITY;
   return Math.floor((Date.now() - parsed.getTime()) / (60 * 1000));
+}
+
+function markManualOutboundGuard(phoneNumber, details = {}) {
+  const normalizedPhone = normalizePhoneNumber(phoneNumber);
+  if (!normalizedPhone) return null;
+
+  const suppressUntil = new Date(Date.now() + WHATSAPP_MANUAL_OUTBOUND_SUPPRESS_HOURS * 60 * 60 * 1000).toISOString();
+  return saveWhatsAppSession(normalizedPhone, 'manual_outbound_guard', {
+    source: details.source || 'temporary_qr',
+    messageText: String(details.text || '').slice(0, 500),
+    metaMessageId: details.metaMessageId || '',
+    startedByUsAt: nowIso(),
+    suppressUntil,
+  });
+}
+
+function isManualOutboundGuardActive(session) {
+  if (session?.step !== 'manual_outbound_guard') return false;
+  const suppressUntil = parseIsoDate(session.draft?.suppressUntil);
+  return Boolean(suppressUntil && suppressUntil.getTime() > Date.now());
 }
 
 function sleep(ms) {
@@ -588,7 +613,7 @@ function getAppointmentById(id) {
 }
 
 function normalizeStatus(value) {
-  const allowed = ['agendado', 'confirmado', 'concluido', 'cancelado'];
+  const allowed = ['pendente', 'agendado', 'confirmado', 'concluido', 'cancelado'];
   return allowed.includes(value) ? value : 'agendado';
 }
 
@@ -601,6 +626,27 @@ function sanitizeAppointment(input, availableDates, availableTimeSlotsByDate, ex
   const procedureName = String(input?.procedureName || '').trim();
   const notes = String(input?.notes || '').trim();
   const status = normalizeStatus(input?.status);
+  const id = String(existingId || input?.id || `appt-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
+  const isWhatsAppLead = id.startsWith('whatsapp-lead-') || Boolean(input?.whatsappLead) || (input?.source === 'whatsapp' && !date);
+
+  if (isWhatsAppLead && fullName) {
+    return {
+      id,
+      fullName,
+      address: address || 'Não informado',
+      cpf: cpfDigits.length === 11 ? formatCpf(cpfDigits) : '',
+      date: '',
+      time: '',
+      status: status === 'agendado' ? 'pendente' : status,
+      procedureName,
+      notes,
+      createdAt: input?.createdAt ? String(input.createdAt) : nowIso(),
+      updatedAt: nowIso(),
+      source: 'whatsapp',
+      contactPhone: normalizePhoneNumber(input?.contactPhone),
+      whatsappLead: true,
+    };
+  }
 
   if (!fullName || !address || cpfDigits.length !== 11 || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
     return null;
@@ -616,7 +662,7 @@ function sanitizeAppointment(input, availableDates, availableTimeSlotsByDate, ex
   }
 
   return {
-    id: String(existingId || input?.id || `appt-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`),
+    id,
     fullName,
     address,
     cpf: formatCpf(cpfDigits),
@@ -769,6 +815,7 @@ function persistSchedule(input, actor) {
     .map((item) => sanitizeAppointment(item, nextAvailableDates, nextAvailableTimeSlots, item?.id))
     .filter(Boolean)
     .filter((item, index, list) => {
+      if (!item.date || !item.time) return true;
       const duplicateIndex = list.findIndex(
         (candidate) =>
           candidate.date === item.date &&
@@ -2733,6 +2780,69 @@ function normalizeOptionalNote(value) {
   return normalized === 'pular' || normalized === 'nao' || normalized === 'nenhuma' ? '' : String(value || '').trim();
 }
 
+function buildWhatsAppLeadProcedureName(lead = {}) {
+  if (lead.examName) return `Exame: ${lead.examName}`;
+  if (lead.procedureName) return `Procedimento: ${lead.procedureName}`;
+  if (lead.type === 'surgery_quote') return 'Orçamento de cirurgia';
+  if (lead.type === 'exam_pre_schedule') return 'Pré-agendamento de exame';
+  if (lead.type === 'consult_pre_schedule') return 'Pré-agendamento de consulta';
+  return lead.typeLabel || 'Atendimento via WhatsApp';
+}
+
+function buildWhatsAppLeadNotes(lead = {}) {
+  return [
+    lead.typeLabel ? `Tipo: ${lead.typeLabel}` : '',
+    lead.phone ? `Telefone informado: ${lead.phone}` : '',
+    lead.insurance ? `Convênio/particular: ${lead.insurance}` : '',
+    lead.preferredDate ? `Data desejada: ${lead.preferredDate}` : '',
+    lead.preferredTime ? `Horário desejado: ${lead.preferredTime}` : '',
+    lead.examName ? `Exame: ${lead.examName}` : '',
+    lead.procedureName ? `Procedimento: ${lead.procedureName}` : '',
+    lead.notes ? `Observações: ${lead.notes}` : '',
+  ].filter(Boolean).join('\n');
+}
+
+function createWhatsAppLeadPanelRecord(sender, leadId, lead = {}) {
+  if (!leadId) return null;
+  const existing = getAppointmentById(leadId);
+  if (existing) return existing;
+
+  const fullName = String(lead.fullName || sender.profileName || 'Paciente WhatsApp').trim();
+  const createdAt = nowIso();
+  db.prepare(`
+    INSERT INTO appointments (
+      id, full_name, address, cpf, appointment_date, appointment_time, status, procedure_name, notes, created_at, updated_at, created_by_user_id, source, contact_phone, archived_at, archive_file_id
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    leadId,
+    fullName,
+    String(lead.address || 'Não informado').trim() || 'Não informado',
+    normalizeCpf(lead.cpf).length === 11 ? formatCpf(lead.cpf) : '',
+    '',
+    '',
+    'pendente',
+    buildWhatsAppLeadProcedureName(lead),
+    buildWhatsAppLeadNotes(lead),
+    createdAt,
+    createdAt,
+    null,
+    'whatsapp',
+    normalizePhoneNumber(lead.phone || sender.phoneNumber),
+    '',
+    ''
+  );
+
+  writeAuditLog(
+    { id: 'whatsapp-bot', displayName: 'WhatsApp', role: 'system' },
+    'create_whatsapp_lead_panel_record',
+    'appointment',
+    leadId,
+    { phoneNumber: sender.phoneNumber, leadType: lead.type || '' }
+  );
+
+  return getAppointmentById(leadId);
+}
+
 function recordWhatsAppLead(sender, lead) {
   const leadId = `whatsapp-lead-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const details = {
@@ -2758,6 +2868,8 @@ function recordWhatsAppLead(sender, lead) {
     leadId,
     details
   );
+
+  createWhatsAppLeadPanelRecord(sender, leadId, lead);
 
   return leadId;
 }
@@ -4046,6 +4158,7 @@ async function processIncomingWhatsAppMessage({
   metaMessageId = '',
   source = 'meta',
   fromMe = false,
+  fromMeBot = false,
 }) {
   if (isGroupConversationId(from)) {
     logWhatsAppEvent({
@@ -4080,9 +4193,13 @@ async function processIncomingWhatsAppMessage({
     profileName: String(profileName || ''),
     source,
   };
-  const dedupPayload = { from, profileName, text, source, fromMe: Boolean(fromMe) };
+  const dedupPayload = { from, profileName, text, source, fromMe: Boolean(fromMe), fromMeBot: Boolean(fromMeBot) };
 
   if (fromMe) {
+    if (!fromMeBot) {
+      markManualOutboundGuard(sender.phoneNumber, { source, text, metaMessageId });
+    }
+
     logWhatsAppEvent({
       direction: 'outbound',
       phoneNumber: sender.phoneNumber,
@@ -4091,7 +4208,7 @@ async function processIncomingWhatsAppMessage({
       messageText: text,
       status: 'from_me_ignored',
       metaMessageId,
-      details: { source, fromMe: true },
+      details: { source, fromMe: true, fromMeBot: Boolean(fromMeBot), manualOutboundGuard: !fromMeBot },
     });
 
     return {
@@ -4103,6 +4220,7 @@ async function processIncomingWhatsAppMessage({
       delivered: false,
       noReply: true,
       fromMe: true,
+      fromMeBot: Boolean(fromMeBot),
     };
   }
 
@@ -4163,6 +4281,11 @@ async function processIncomingWhatsAppMessage({
     clearWhatsAppSession(sender.phoneNumber);
     activeSession = null;
   }
+  if (activeSession?.step === 'manual_outbound_guard' && !isManualOutboundGuardActive(activeSession)) {
+    clearWhatsAppSession(sender.phoneNumber);
+    activeSession = null;
+  }
+  const manualOutboundGuardActive = isManualOutboundGuardActive(activeSession);
   const conversationStartedByUs = !activeSession && wasWhatsAppConversationStartedByUs(sender.phoneNumber);
   if (!activeSession && command.type === 'help') {
     command = resolveMainMenuChoice(text) || command;
@@ -4176,12 +4299,17 @@ async function processIncomingWhatsAppMessage({
     messageText: text,
     status: 'received',
     metaMessageId,
-    details: { source, commandType: command.type, conversationStartedByUs },
+    details: { source, commandType: command.type, conversationStartedByUs, manualOutboundGuardActive },
   });
 
   let outcome;
   try {
-    if (activeSession?.step === 'human_handoff') {
+    if (manualOutboundGuardActive) {
+      outcome = buildNoReplyOutcome('manual_outbound_reply_guard', {
+        reason: 'conversation_started_manually_by_clinic',
+        suppressUntil: activeSession.draft?.suppressUntil || '',
+      });
+    } else if (activeSession?.step === 'human_handoff') {
       outcome = buildNoReplyOutcome('human_handoff_silent', {
         reason: 'waiting_human',
         conversationStatus: activeSession.draft?.conversationStatus || 'waiting_human',
@@ -4418,6 +4546,12 @@ async function runWhatsAppAutomationMaintenance() {
 
   const sessions = getAllWhatsAppSessions();
   for (const session of sessions) {
+    if (session.step === 'manual_outbound_guard') {
+      if (!isManualOutboundGuardActive(session)) {
+        clearWhatsAppSession(session.phoneNumber);
+      }
+      continue;
+    }
     if (String(session.step || '').startsWith('human_')) continue;
     const minutesSince = getMinutesSince(session.updatedAt);
     if (minutesSince < WHATSAPP_SESSION_NUDGE_MINUTES) continue;

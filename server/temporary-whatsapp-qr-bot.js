@@ -94,6 +94,8 @@ function startTemporaryWhatsAppQrBot(options = {}) {
   let reconnectTimer = null;
   let starting = false;
   const processedMessageIds = new Set();
+  const botSentMessageIds = new Set();
+  const botOutboundFingerprints = new Map();
 
   const importBaileys = async () => {
     if (!baileys) {
@@ -141,6 +143,11 @@ function startTemporaryWhatsAppQrBot(options = {}) {
       const text = extractMessageText(message);
       if (!text) continue;
 
+      const fingerprintKey = `${remoteJid}:${text}`;
+      const fingerprintAt = botOutboundFingerprints.get(fingerprintKey) || 0;
+      const fromMeBot = Boolean(message?.key?.fromMe)
+        && (botSentMessageIds.has(messageId) || Date.now() - fingerprintAt <= 60_000);
+
       processedMessageIds.add(messageId);
       try {
         await processIncomingMessage({
@@ -151,6 +158,7 @@ function startTemporaryWhatsAppQrBot(options = {}) {
           metaMessageId: `temporary:${messageId}`,
           source: 'temporary_qr',
           fromMe: Boolean(message?.key?.fromMe),
+          fromMeBot,
         });
       } catch (error) {
         updateStatus({ lastError: error.message || 'Falha ao processar mensagem recebida.' });
@@ -300,12 +308,21 @@ function startTemporaryWhatsAppQrBot(options = {}) {
         throw error;
       }
 
-      const sent = await socket.sendMessage(jid, { text: String(body || '') });
+      const normalizedBody = String(body || '');
+      const fingerprintKey = `${jid}:${normalizedBody}`;
+      botOutboundFingerprints.set(fingerprintKey, Date.now());
+      const sent = await socket.sendMessage(jid, { text: normalizedBody });
+      const sentId = sent?.key?.id || '';
+      if (sentId) {
+        botSentMessageIds.add(sentId);
+        setTimeout(() => botSentMessageIds.delete(sentId), 5 * 60 * 1000);
+      }
+      setTimeout(() => botOutboundFingerprints.delete(fingerprintKey), 60_000);
       return {
         temporary: true,
         messages: [
           {
-            id: sent?.key?.id || `temporary-${Date.now()}`,
+            id: sentId || `temporary-${Date.now()}`,
           },
         ],
       };

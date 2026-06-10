@@ -57,6 +57,11 @@ function formatDateLabel(dateString) {
   });
 }
 
+function formatAppointmentDateLabel(appointment = {}) {
+  if (!appointment.date) return 'Sem data definida';
+  return `${formatDateLabel(appointment.date)}${appointment.time ? ` às ${appointment.time}` : ''}`;
+}
+
 function formatDateTimeLabel(dateString) {
   if (!dateString) return '-';
   const date = new Date(dateString);
@@ -217,7 +222,7 @@ const DEFAULT_TIME_SLOTS = [
 function toggleDateInSchedule(schedule, dateString) {
   const exists = schedule.availableDates.includes(dateString);
   const nextDates = exists ? schedule.availableDates.filter((item) => item !== dateString) : sortDates([...schedule.availableDates, dateString]);
-  const nextAppointments = schedule.appointments.filter((item) => item.archivedAt || item.status === 'cancelado' || nextDates.includes(item.date));
+  const nextAppointments = schedule.appointments.filter((item) => !item.date || item.archivedAt || item.status === 'cancelado' || nextDates.includes(item.date));
   const nextAvailableTimeSlots = { ...(schedule.availableTimeSlots || {}) };
 
   if (exists) {
@@ -803,7 +808,7 @@ export default function AdminPanel() {
     setSelectedPatientId(id);
     setAppointmentEditOpen(false);
     setAppointmentEditForm({ date: appointment.date, time: appointment.time || '' });
-    jumpToDate(appointment.date);
+    if (appointment.date) jumpToDate(appointment.date);
   };
 
   const handleRescheduleAppointment = async () => {
@@ -1698,22 +1703,22 @@ export default function AdminPanel() {
 
         <main className="admin-main" style={{ padding: pagePadding }}>
         <div style={{ maxWidth: '1440px', margin: '0 auto' }}>
-        <div className="admin-topbar">
+        <div className="admin-topbar" style={{ padding: isMobile ? '14px 0 16px' : '10px 0 16px', marginBottom: isMobile ? '18px' : '20px', borderBottom: '1px solid #E2E8F0' }}>
           <div>
-            <div style={{ color: '#2563EB', textTransform: 'uppercase', letterSpacing: '0.12em', fontSize: '11px', marginBottom: '8px', fontWeight: 800 }}>Painel Administrativo</div>
-            <h1 style={{ margin: 0, fontFamily: "'Inter', 'Outfit', system-ui, sans-serif", fontSize: isMobile ? '30px' : '40px', fontWeight: 900, color: '#0F172A', letterSpacing: 0 }}>Willian Holanda</h1>
-            <p style={{ margin: '8px 0 0', color: '#64748B' }}>Logado como <strong>{currentUser.displayName}</strong> ({isAdmin ? 'Admin' : 'Equipe'})</p>
+            <div style={{ color: '#2563EB', textTransform: 'uppercase', letterSpacing: '0.12em', fontSize: '11px', marginBottom: '6px', fontWeight: 800 }}>Painel Administrativo</div>
+            <h1 style={{ margin: 0, fontFamily: "'Inter', 'Outfit', system-ui, sans-serif", fontSize: isMobile ? '28px' : '34px', lineHeight: 1.08, fontWeight: 800, color: '#0F172A', letterSpacing: 0 }}>Willian Holanda</h1>
+            <p style={{ margin: '6px 0 0', color: '#64748B', fontSize: '14px' }}>Logado como <strong>{currentUser.displayName}</strong> ({isAdmin ? 'Admin' : 'Equipe'})</p>
           </div>
 
-          <div style={{ flex: '1 1 280px', maxWidth: isMobile ? '100%' : '420px', width: '100%' }}>
+          <div style={{ flex: '1 1 280px', maxWidth: isMobile ? '100%' : '380px', width: '100%' }}>
             <Field label="Busca rápida" value={patientSearch} onChange={setPatientSearch} placeholder="Buscar paciente, CPF, data ou status" />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(140px, max-content))', gap: '10px', width: isMobile ? '100%' : 'auto' }}>
-            <a href={dashboardUrl} target="_blank" rel="noreferrer" style={{ color: '#334155' }}><ActionButton>Abrir sistema</ActionButton></a>
-            <ActionButton onClick={handleRefreshPanel} disabled={busyKey === 'refresh'} stretch={isMobile}>{busyKey === 'refresh' ? 'Atualizando...' : 'Atualizar agenda'}</ActionButton>
-            <ActionButton onClick={handleSaveSchedule} variant="primary" disabled={busyKey === 'schedule'} stretch={isMobile}>{busyKey === 'schedule' ? 'Salvando agenda...' : 'Salvar agenda'}</ActionButton>
-            <ActionButton onClick={logout} stretch={isMobile}>Sair</ActionButton>
+          <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: isMobile ? 'stretch' : 'flex-end', gap: '10px', width: isMobile ? '100%' : 'auto' }}>
+            <a href={dashboardUrl} target="_blank" rel="noreferrer" style={{ color: '#334155', flex: isMobile ? '1 1 100%' : '0 0 auto' }}><ActionButton stretch={isMobile} style={{ minHeight: '40px', padding: '10px 14px' }}>Abrir sistema</ActionButton></a>
+            <ActionButton onClick={handleRefreshPanel} disabled={busyKey === 'refresh'} stretch={isMobile} style={{ minHeight: '40px', padding: '10px 14px' }}>{busyKey === 'refresh' ? 'Atualizando...' : 'Atualizar agenda'}</ActionButton>
+            <ActionButton onClick={handleSaveSchedule} variant="primary" disabled={busyKey === 'schedule'} stretch={isMobile} style={{ minHeight: '40px', padding: '10px 14px' }}>{busyKey === 'schedule' ? 'Salvando agenda...' : 'Salvar agenda'}</ActionButton>
+            <ActionButton onClick={logout} stretch={isMobile} style={{ minHeight: '40px', padding: '10px 14px' }}>Sair</ActionButton>
           </div>
         </div>
 
@@ -2055,7 +2060,7 @@ export default function AdminPanel() {
                         <div>
                           <strong style={{ display: 'block', fontSize: '16px' }}>{appointment.fullName}</strong>
                           <span style={{ color: '#475569', fontSize: '13px' }}>
-                            {formatDateLabel(appointment.date)}{appointment.time ? ` às ${appointment.time}` : ''} · {appointment.procedureName || activeMedicalType.label}
+                            {formatAppointmentDateLabel(appointment)} · {appointment.procedureName || activeMedicalType.label}
                           </span>
                         </div>
                         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
@@ -2339,7 +2344,7 @@ export default function AdminPanel() {
                       <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
                         <div>
                           <strong style={{ display: 'block', fontSize: '16px' }}>{appointment.fullName}</strong>
-                          <span style={{ color: '#475569', fontSize: '13px' }}>{formatDateLabel(appointment.date)}{appointment.time ? ` às ${appointment.time}` : ''}</span>
+                          <span style={{ color: '#475569', fontSize: '13px' }}>{formatAppointmentDateLabel(appointment)}</span>
                         </div>
                         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                           <span style={{ borderRadius: '999px', padding: '7px 10px', background: typePalette.background, color: typePalette.color, fontSize: '12px', fontWeight: 800 }}>{typePalette.label}</span>
@@ -2524,7 +2529,7 @@ export default function AdminPanel() {
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
                       <div>
                         <strong style={{ display: 'block', marginBottom: '4px' }}>{item.fullName}</strong>
-                        <span style={{ color: '#2563EB', fontSize: '13px' }}>{formatDateLabel(item.date)}{item.time ? ` às ${item.time}` : ''}</span>
+                        <span style={{ color: '#2563EB', fontSize: '13px' }}>{formatAppointmentDateLabel(item)}</span>
                       </div>
                       <span style={{ borderRadius: '12px', padding: '7px 10px', background: item.archivedAt ? '#EFF6FF' : '#ECFDF5', color: item.archivedAt ? '#1D4ED8' : '#166534', fontSize: '12px' }}>
                         {item.archivedAt ? 'Arquivado' : 'Recente'}
@@ -2640,7 +2645,7 @@ export default function AdminPanel() {
                   {selectedPatient.fullName}
                 </h2>
                 <p style={{ margin: 0, color: '#64748B', lineHeight: 1.7 }}>
-                  {formatDateLabel(selectedPatient.date)}{selectedPatient.time ? ` às ${selectedPatient.time}` : ''}
+                  {formatAppointmentDateLabel(selectedPatient)}
                 </p>
               </div>
               <ActionButton onClick={() => {
@@ -2653,7 +2658,7 @@ export default function AdminPanel() {
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center', flexWrap: 'wrap', padding: '14px', borderRadius: '12px', background: selectedPatient.status === 'cancelado' ? '#FEF2F2' : '#ECFDF5', border: selectedPatient.status === 'cancelado' ? '1px solid #FCA5A5' : '1px solid #A7F3D0' }}>
                 <div>
                   <strong style={{ display: 'block', marginBottom: '4px' }}>Agendamento atual</strong>
-                  <span style={{ color: '#475569' }}>{formatDateLabel(selectedPatient.date)}{selectedPatient.time ? ` às ${selectedPatient.time}` : ''}</span>
+                  <span style={{ color: '#475569' }}>{formatAppointmentDateLabel(selectedPatient)}</span>
                 </div>
                 <span style={{ borderRadius: '12px', padding: '8px 10px', background: selectedPatient.status === 'cancelado' ? '#FEF2F2' : '#ECFDF5', color: selectedPatient.status === 'cancelado' ? '#B91C1C' : '#166534', fontSize: '12px' }}>{selectedPatient.status}</span>
               </div>
@@ -2667,7 +2672,7 @@ export default function AdminPanel() {
                 </div>
                 <div style={{ display: 'grid', gap: '8px', padding: '14px', borderRadius: '12px', background: '#F8FAFC', border: '1px solid #E2E8F0', color: '#475569', lineHeight: 1.7 }}>
                   <strong style={{ color: '#0F172A' }}>Dados do agendamento</strong>
-                  <div><strong>Data:</strong> {formatDateLabel(selectedPatient.date)}</div>
+                  <div><strong>Data:</strong> {selectedPatient.date ? formatDateLabel(selectedPatient.date) : 'Sem data definida'}</div>
                   <div><strong>Horário:</strong> {selectedPatient.time || 'Sem horário'}</div>
                   <div><strong>Procedimento:</strong> {selectedPatient.procedureName || 'Procedimento a definir'}</div>
                   <div><strong>Origem:</strong> {selectedPatient.source === 'whatsapp' ? 'WhatsApp' : 'Painel'}</div>
