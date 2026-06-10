@@ -135,7 +135,7 @@ function startTemporaryWhatsAppQrBot(options = {}) {
       const messageId = message?.key?.id || '';
       const remoteJid = message?.key?.remoteJid || '';
       if (!messageId || processedMessageIds.has(messageId)) continue;
-      if (message?.key?.fromMe || isGroupJid(remoteJid) || remoteJid === 'status@broadcast') continue;
+      if (isGroupJid(remoteJid) || remoteJid === 'status@broadcast') continue;
       if (type !== 'notify' && Date.now() - getMessageTimestampMs(message) > 10 * 60 * 1000) continue;
 
       const text = extractMessageText(message);
@@ -150,6 +150,7 @@ function startTemporaryWhatsAppQrBot(options = {}) {
           text,
           metaMessageId: `temporary:${messageId}`,
           source: 'temporary_qr',
+          fromMe: Boolean(message?.key?.fromMe),
         });
       } catch (error) {
         updateStatus({ lastError: error.message || 'Falha ao processar mensagem recebida.' });
