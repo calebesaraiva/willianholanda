@@ -165,6 +165,25 @@ function getEditableTimeOptions(dateString, appointment, freeTimeSlotsByDate) {
   return sortTimes([...(freeTimeSlotsByDate[dateString] || []), ...currentTime]);
 }
 
+const medicalTypeOptions = [
+  { key: 'consulta', label: 'Consulta', color: '#0EA5E9', background: '#E0F2FE' },
+  { key: 'exame', label: 'Exame', color: '#F59E0B', background: '#FEF3C7' },
+  { key: 'procedimento', label: 'Procedimento', color: '#8B5CF6', background: '#EDE9FE' },
+];
+
+function inferAppointmentType(appointment = {}) {
+  const text = [appointment.procedureName, appointment.notes].join(' ').toLowerCase();
+  if (/(endoscopia|colonoscopia|exame|ultrassom|bioimpedancia)/i.test(text)) return medicalTypeOptions[1];
+  if (/(cirurgia|procedimento|orçamento|orcamento)/i.test(text)) return medicalTypeOptions[2];
+  return medicalTypeOptions[0];
+}
+
+function getStatusPalette(status) {
+  if (status === 'cancelado') return { label: 'Cancelado', color: '#EF4444', background: '#FEE2E2', border: '#FECACA' };
+  if (status === 'confirmado' || status === 'concluido') return { label: status === 'concluido' ? 'Concluído' : 'Confirmado', color: '#16A34A', background: '#DCFCE7', border: '#BBF7D0' };
+  return { label: status || 'Pendente', color: '#64748B', background: '#F1F5F9', border: '#E2E8F0' };
+}
+
 const DEFAULT_TIME_SLOTS = [
   '07:00', '07:30',
   '08:00', '08:30',
@@ -203,15 +222,16 @@ function toggleDateInSchedule(schedule, dateString) {
 function baseInputStyle() {
   return {
     width: '100%',
-    background: 'rgba(8,22,31,0.95)',
-    border: '1px solid rgba(21,171,209,0.18)',
-    color: '#FFFFFF',
-    borderRadius: '14px',
+    background: '#FFFFFF',
+    border: '1px solid #CBD5E1',
+    color: '#0F172A',
+    borderRadius: '12px',
     padding: '12px 14px',
-    fontFamily: "'Outfit', sans-serif",
+    fontFamily: "'Inter', 'Outfit', system-ui, sans-serif",
     fontSize: '14px',
     lineHeight: 1.6,
     outline: 'none',
+    boxShadow: '0 1px 2px rgba(15,23,42,0.04)',
   };
 }
 
@@ -227,10 +247,11 @@ function Field({ label, value, onChange, multiline = false, placeholder, type = 
         style={{
           fontFamily: "'Outfit', sans-serif",
           fontSize: '11px',
-          letterSpacing: '0.18em',
+          letterSpacing: '0.08em',
           textTransform: 'uppercase',
-          color: '#15ABD1',
+          color: '#64748B',
           marginBottom: '8px',
+          fontWeight: 700,
         }}
       >
         {label}
@@ -268,10 +289,11 @@ function SelectField({ label, value, onChange, options, disabled = false }) {
         style={{
           fontFamily: "'Outfit', sans-serif",
           fontSize: '11px',
-          letterSpacing: '0.18em',
+          letterSpacing: '0.08em',
           textTransform: 'uppercase',
-          color: '#15ABD1',
+          color: '#64748B',
           marginBottom: '8px',
+          fontWeight: 700,
         }}
       >
         {label}
@@ -300,25 +322,25 @@ function SectionCard({ id, title, eyebrow, description, children, style }) {
     <section
       id={id}
       style={{
-        background: 'linear-gradient(180deg, rgba(8,24,34,0.98) 0%, rgba(6,14,22,0.98) 100%)',
-        border: '1px solid rgba(21,171,209,0.14)',
-        borderRadius: '28px',
+        background: '#FFFFFF',
+        border: '1px solid #E2E8F0',
+        borderRadius: '20px',
         padding: '28px',
         marginBottom: '24px',
-        boxShadow: '0 18px 44px rgba(0,0,0,0.28)',
+        boxShadow: '0 18px 48px rgba(15,23,42,0.07)',
         ...style,
       }}
     >
       <div style={{ marginBottom: '20px' }}>
         {eyebrow ? (
-          <div style={{ color: '#15ABD1', textTransform: 'uppercase', letterSpacing: '0.24em', fontSize: '11px', marginBottom: '8px' }}>
+          <div style={{ color: '#0EA5E9', textTransform: 'uppercase', letterSpacing: '0.12em', fontSize: '11px', marginBottom: '8px', fontWeight: 800 }}>
             {eyebrow}
           </div>
         ) : null}
-        <h2 style={{ margin: 0, fontFamily: "'Cormorant Garamond', serif", fontWeight: 400, fontSize: '34px', color: '#FFFFFF' }}>
+        <h2 style={{ margin: 0, fontFamily: "'Inter', 'Outfit', system-ui, sans-serif", fontWeight: 800, fontSize: 'clamp(24px, 3vw, 34px)', color: '#0F172A', letterSpacing: 0 }}>
           {title}
         </h2>
-        {description ? <p style={{ margin: '10px 0 0', color: 'rgba(244,251,248,0.68)', lineHeight: 1.8 }}>{description}</p> : null}
+        {description ? <p style={{ margin: '10px 0 0', color: '#64748B', lineHeight: 1.7 }}>{description}</p> : null}
       </div>
       <div style={{ display: 'grid', gap: '18px' }}>{children}</div>
     </section>
@@ -333,10 +355,10 @@ function ActionButton({ children, onClick, variant = 'outline', type = 'button',
   const [isHovered, setIsHovered] = useState(false);
   const palette =
     variant === 'primary'
-      ? { background: '#15ABD1', color: '#07110E', border: '1px solid #15ABD1', hoverBackground: '#11AFBA', hoverColor: '#07110E', hoverBorder: '#11AFBA', hoverShadow: '0 14px 28px rgba(21,171,209,0.24)' }
+      ? { background: '#0EA5E9', color: '#FFFFFF', border: '1px solid #0EA5E9', hoverBackground: '#0284C7', hoverColor: '#FFFFFF', hoverBorder: '#0284C7', hoverShadow: '0 14px 28px rgba(14,165,233,0.24)' }
       : variant === 'danger'
-        ? { background: 'transparent', color: '#E7B1B1', border: '1px solid rgba(231,177,177,0.35)', hoverBackground: 'rgba(231,177,177,0.08)', hoverColor: '#F2C6C6', hoverBorder: 'rgba(231,177,177,0.55)', hoverShadow: '0 12px 24px rgba(231,177,177,0.12)' }
-        : { background: 'transparent', color: '#FFFFFF', border: '1px solid rgba(255,255,255,0.12)', hoverBackground: 'rgba(255,255,255,0.08)', hoverColor: '#FFFFFF', hoverBorder: 'rgba(21,171,209,0.26)', hoverShadow: '0 12px 24px rgba(0,0,0,0.18)' };
+        ? { background: '#FEF2F2', color: '#DC2626', border: '1px solid #FECACA', hoverBackground: '#FEE2E2', hoverColor: '#B91C1C', hoverBorder: '#FCA5A5', hoverShadow: '0 12px 24px rgba(239,68,68,0.12)' }
+        : { background: '#FFFFFF', color: '#334155', border: '1px solid #CBD5E1', hoverBackground: '#F8FAFC', hoverColor: '#0F172A', hoverBorder: '#94A3B8', hoverShadow: '0 12px 24px rgba(15,23,42,0.08)' };
 
   const hoverStyles = !disabled && isHovered
     ? {
@@ -355,7 +377,7 @@ function ActionButton({ children, onClick, variant = 'outline', type = 'button',
       disabled={disabled}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      style={{ ...palette, ...hoverStyles, borderRadius: '999px', padding: '12px 18px', cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.55 : 1, fontWeight: 500, width: stretch ? '100%' : 'auto', transition: 'background 180ms ease, color 180ms ease, border 180ms ease, transform 180ms ease, box-shadow 180ms ease', ...style }}
+      style={{ ...palette, ...hoverStyles, borderRadius: '12px', padding: '12px 18px', cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.55 : 1, fontWeight: 800, width: stretch ? '100%' : 'auto', transition: 'background 180ms ease, color 180ms ease, border 180ms ease, transform 180ms ease, box-shadow 180ms ease', ...style }}
     >
       {children}
     </button>
@@ -368,13 +390,14 @@ function SectionMenuLink({ href, label }) {
       href={href}
       style={{
         textDecoration: 'none',
-        borderRadius: '999px',
-        padding: '10px 14px',
-        color: '#FFFFFF',
-        border: '1px solid rgba(255,255,255,0.10)',
-        background: 'rgba(255,255,255,0.04)',
+        borderRadius: '12px',
+        padding: '11px 14px',
+        color: '#334155',
+        border: '1px solid #E2E8F0',
+        background: '#FFFFFF',
         fontSize: '13px',
         lineHeight: 1.2,
+        fontWeight: 700,
       }}
     >
       {label}
@@ -384,10 +407,10 @@ function SectionMenuLink({ href, label }) {
 
 function QuickActionCard({ title, description, children }) {
   return (
-    <div style={{ background: 'rgba(9,26,36,0.92)', borderRadius: '20px', padding: '18px', border: '1px solid rgba(255,255,255,0.05)', display: 'grid', gap: '12px' }}>
+    <div style={{ background: '#F8FAFC', borderRadius: '18px', padding: '18px', border: '1px solid #E2E8F0', display: 'grid', gap: '12px' }}>
       <div>
-        <strong style={{ display: 'block', fontSize: '17px', marginBottom: '6px' }}>{title}</strong>
-        <p style={{ margin: 0, color: 'rgba(244,251,248,0.62)', lineHeight: 1.7 }}>{description}</p>
+        <strong style={{ display: 'block', fontSize: '17px', marginBottom: '6px', color: '#0F172A' }}>{title}</strong>
+        <p style={{ margin: 0, color: '#64748B', lineHeight: 1.7 }}>{description}</p>
       </div>
       <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>{children}</div>
     </div>
@@ -396,9 +419,9 @@ function QuickActionCard({ title, description, children }) {
 
 function ItemCard({ title, children, onRemove }) {
   return (
-    <div style={{ background: 'rgba(9,26,36,0.94)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '20px', padding: '18px' }}>
+    <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '18px', padding: '18px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap' }}>
-        <strong style={{ color: '#FFFFFF', fontFamily: "'Outfit', sans-serif", fontWeight: 500 }}>{title}</strong>
+        <strong style={{ color: '#0F172A', fontFamily: "'Outfit', sans-serif", fontWeight: 800 }}>{title}</strong>
         {onRemove ? <ActionButton variant="danger" onClick={onRemove}>Remover</ActionButton> : null}
       </div>
       <div style={{ display: 'grid', gap: '14px' }}>{children}</div>
@@ -421,28 +444,28 @@ function UploadField({ label, value, onChange }) {
       <div style={{ marginTop: '10px' }}>
         <input type="file" accept="image/*" onChange={handleUpload} />
       </div>
-      {value ? <div style={{ marginTop: '14px' }}><img src={value} alt={label} style={{ width: '100%', maxWidth: '260px', borderRadius: '16px', border: '1px solid rgba(21,171,209,0.22)', boxShadow: '0 18px 34px rgba(0,0,0,0.24)' }} /></div> : null}
+      {value ? <div style={{ marginTop: '14px' }}><img src={value} alt={label} style={{ width: '100%', maxWidth: '260px', borderRadius: '16px', border: '1px solid #BAE6FD', boxShadow: '0 18px 34px rgba(0,0,0,0.24)' }} /></div> : null}
     </div>
   );
 }
 
 function CalendarLegend() {
-  return <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', color: 'rgba(244,251,248,0.68)', fontSize: '13px' }}><span>Liberada: azul suave</span><span>Com paciente: contorno azul</span><span>Fora do mês: opaco</span></div>;
+  return <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', color: '#64748B', fontSize: '13px' }}>{medicalTypeOptions.map((item) => <span key={item.key} style={{ borderRadius: '999px', padding: '7px 10px', background: item.background, color: item.color, fontWeight: 800 }}>{item.label}</span>)}<span style={{ borderRadius: '999px', padding: '7px 10px', background: '#DCFCE7', color: '#16A34A', fontWeight: 800 }}>Confirmado</span><span style={{ borderRadius: '999px', padding: '7px 10px', background: '#FEE2E2', color: '#DC2626', fontWeight: 800 }}>Cancelado</span></div>;
 }
 
 function UserStatusPill({ active, role }) {
   return (
     <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-      <span style={{ borderRadius: '999px', padding: '7px 11px', background: role === 'admin' ? 'rgba(21,171,209,0.16)' : 'rgba(255,255,255,0.06)', color: role === 'admin' ? '#C9F6FF' : '#FFFFFF', fontSize: '12px' }}>{role === 'admin' ? 'Admin' : 'Equipe'}</span>
-      <span style={{ borderRadius: '999px', padding: '7px 11px', background: active ? 'rgba(17,175,186,0.16)' : 'rgba(231,177,177,0.16)', color: active ? '#BEEFFF' : '#E7B1B1', fontSize: '12px' }}>{active ? 'Ativo' : 'Inativo'}</span>
+      <span style={{ borderRadius: '999px', padding: '7px 11px', background: role === 'admin' ? '#E0F2FE' : '#E2E8F0', color: role === 'admin' ? '#C9F6FF' : '#FFFFFF', fontSize: '12px' }}>{role === 'admin' ? 'Admin' : 'Equipe'}</span>
+      <span style={{ borderRadius: '999px', padding: '7px 11px', background: active ? '#DCFCE7' : '#FEE2E2', color: active ? '#BEEFFF' : '#E7B1B1', fontSize: '12px' }}>{active ? 'Ativo' : 'Inativo'}</span>
     </div>
   );
 }
 
 function SourcePill({ source }) {
   const palette = source === 'whatsapp'
-    ? { background: 'rgba(17,175,186,0.16)', color: '#BEEFFF' }
-    : { background: 'rgba(21,171,209,0.16)', color: '#C9F6FF' };
+    ? { background: '#DCFCE7', color: '#BEEFFF' }
+    : { background: '#E0F2FE', color: '#C9F6FF' };
 
   return (
     <span style={{ borderRadius: '999px', padding: '7px 11px', background: palette.background, color: palette.color, fontSize: '12px' }}>
@@ -453,18 +476,18 @@ function SourcePill({ source }) {
 
 function StatCard({ label, value, tone = 'gold' }) {
   const tones = {
-    gold: { background: 'rgba(21,171,209,0.12)', border: 'rgba(21,171,209,0.22)', color: '#D9F7FF' },
-    green: { background: 'rgba(17,175,186,0.12)', border: 'rgba(17,175,186,0.22)', color: '#BEEFFF' },
-    white: { background: 'rgba(255,255,255,0.05)', border: 'rgba(255,255,255,0.12)', color: '#FFFFFF' },
+    gold: { background: '#E0F2FE', border: '#BAE6FD', color: '#0284C7' },
+    green: { background: '#DCFCE7', border: '#BBF7D0', color: '#16A34A' },
+    white: { background: '#F8FAFC', border: '#E2E8F0', color: '#334155' },
   };
   const palette = tones[tone] || tones.gold;
 
   return (
-    <div style={{ background: palette.background, border: `1px solid ${palette.border}`, borderRadius: '20px', padding: '18px' }}>
-      <div style={{ color: 'rgba(244,251,248,0.62)', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: '8px' }}>
+    <div style={{ background: palette.background, border: `1px solid ${palette.border}`, borderRadius: '18px', padding: '18px', minHeight: '118px', display: 'grid', alignContent: 'space-between' }}>
+      <div style={{ color: '#64748B', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '8px', fontWeight: 800 }}>
         {label}
       </div>
-      <strong style={{ color: palette.color, fontSize: '32px', fontFamily: "'Cormorant Garamond', serif", fontWeight: 500 }}>
+      <strong style={{ color: palette.color, fontSize: '32px', fontFamily: "'Inter', 'Outfit', system-ui, sans-serif", fontWeight: 900 }}>
         {value}
       </strong>
     </div>
@@ -473,25 +496,25 @@ function StatCard({ label, value, tone = 'gold' }) {
 
 function PeriodSummaryCard({ period }) {
   return (
-    <div style={{ background: 'rgba(9,26,36,0.92)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '8px', padding: '18px', display: 'grid', gap: '14px' }}>
+    <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '18px', display: 'grid', gap: '14px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
         <div>
           <strong style={{ display: 'block', fontSize: '18px', marginBottom: '4px' }}>{period.label}</strong>
-          <span style={{ color: 'rgba(244,251,248,0.62)', fontSize: '13px' }}>{period.range}</span>
+          <span style={{ color: '#64748B', fontSize: '13px' }}>{period.range}</span>
         </div>
-        <span style={{ borderRadius: '8px', padding: '8px 10px', background: 'rgba(21,171,209,0.14)', color: '#D9F7FF', fontSize: '12px' }}>
+        <span style={{ borderRadius: '8px', padding: '8px 10px', background: '#E0F2FE', color: '#D9F7FF', fontSize: '12px' }}>
           {period.occupancy}% ocupação
         </span>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '10px' }}>
-        <div><strong style={{ color: '#D9F7FF', fontSize: '24px' }}>{period.total}</strong><div style={{ color: 'rgba(244,251,248,0.58)', fontSize: '12px' }}>agendamentos</div></div>
-        <div><strong style={{ color: '#BEEFFF', fontSize: '24px' }}>{period.completed}</strong><div style={{ color: 'rgba(244,251,248,0.58)', fontSize: '12px' }}>realizados</div></div>
-        <div><strong style={{ color: '#FFFFFF', fontSize: '20px' }}>{period.confirmed}</strong><div style={{ color: 'rgba(244,251,248,0.58)', fontSize: '12px' }}>confirmados</div></div>
-        <div><strong style={{ color: '#E7B1B1', fontSize: '20px' }}>{period.canceled}</strong><div style={{ color: 'rgba(244,251,248,0.58)', fontSize: '12px' }}>cancelados</div></div>
+        <div><strong style={{ color: '#D9F7FF', fontSize: '24px' }}>{period.total}</strong><div style={{ color: '#94A3B8', fontSize: '12px' }}>agendamentos</div></div>
+        <div><strong style={{ color: '#BEEFFF', fontSize: '24px' }}>{period.completed}</strong><div style={{ color: '#94A3B8', fontSize: '12px' }}>realizados</div></div>
+        <div><strong style={{ color: '#FFFFFF', fontSize: '20px' }}>{period.confirmed}</strong><div style={{ color: '#94A3B8', fontSize: '12px' }}>confirmados</div></div>
+        <div><strong style={{ color: '#E7B1B1', fontSize: '20px' }}>{period.canceled}</strong><div style={{ color: '#94A3B8', fontSize: '12px' }}>cancelados</div></div>
       </div>
 
-      <div style={{ display: 'grid', gap: '6px', color: 'rgba(244,251,248,0.72)', fontSize: '13px', lineHeight: 1.6 }}>
+      <div style={{ display: 'grid', gap: '6px', color: '#475569', fontSize: '13px', lineHeight: 1.6 }}>
         <div><strong>Pacientes únicos:</strong> {period.uniquePatients}</div>
         <div><strong>Vagas liberadas:</strong> {period.availableSlots}</div>
         <div><strong>Via WhatsApp:</strong> {period.whatsapp}</div>
@@ -561,6 +584,7 @@ export default function AdminPanel() {
     procedureName: 'Consulta',
   });
   const [userEdits, setUserEdits] = useState({});
+  const [slotReleaseType, setSlotReleaseType] = useState('consulta');
   const [systemDate, setSystemDate] = useState(() => new Date());
   const [calendarMonth, setCalendarMonth] = useState(() => monthStart(new Date()));
   const autoFollowSystemMonth = useRef(true);
@@ -868,7 +892,8 @@ export default function AdminPanel() {
       },
     };
 
-    const saved = await saveScheduleOptimistically(nextSchedule, 'Horário salvo automaticamente para a recepção.', draft.admin);
+    const releaseLabel = medicalTypeOptions.find((item) => item.key === slotReleaseType)?.label || 'horário';
+    const saved = await saveScheduleOptimistically(nextSchedule, `Horário para ${releaseLabel.toLowerCase()} salvo automaticamente para a recepção e WhatsApp.`, draft.admin);
     if (saved) setSlotEditor((previous) => ({ ...previous, time: '' }));
   };
 
@@ -1142,11 +1167,16 @@ export default function AdminPanel() {
   const inactiveUsers = users.filter((user) => !user.active);
   const adminUsers = users.filter((user) => user.role === 'admin');
   const adminSectionLinks = [
-    { href: '#whatsapp-admin', label: 'WhatsApp' },
-    { href: '#acessos', label: 'Acessos' },
+    { href: '#dashboard-admin', label: 'Dashboard' },
     { href: '#agenda-admin', label: 'Agenda' },
-    { href: '#historico-admin', label: 'Histórico' },
-    { href: '#seguranca-admin', label: 'Meu acesso' },
+    { href: '#agenda-admin', label: 'Consultas' },
+    { href: '#agenda-admin', label: 'Exames' },
+    { href: '#agenda-admin', label: 'Procedimentos' },
+    { href: '#pacientes-admin', label: 'Pacientes' },
+    { href: '#financeiro-admin', label: 'Financeiro' },
+    { href: '#whatsapp-admin', label: 'WhatsApp' },
+    { href: '#historico-admin', label: 'Relatórios' },
+    { href: '#acessos', label: 'Configurações' },
   ];
   useEffect(() => {
     if (appointmentForm.date && !(freeTimeSlotsByDate[appointmentForm.date] || []).includes(appointmentForm.time)) {
@@ -1177,6 +1207,19 @@ export default function AdminPanel() {
   const todayAppointments = useMemo(
     () => appointmentsByDate.filter((item) => item.date === todayDate && item.status !== 'cancelado'),
     [appointmentsByDate, todayDate]
+  );
+  const todayTypeCounts = useMemo(() => todayAppointments.reduce((accumulator, item) => {
+    const appointmentType = inferAppointmentType(item).key;
+    accumulator[appointmentType] = (accumulator[appointmentType] || 0) + 1;
+    return accumulator;
+  }, { consulta: 0, exame: 0, procedimento: 0 }), [todayAppointments]);
+  const pendingAppointments = useMemo(
+    () => appointmentsByDate.filter((item) => item.status !== 'cancelado' && item.status !== 'confirmado' && item.status !== 'concluido'),
+    [appointmentsByDate]
+  );
+  const canceledAppointments = useMemo(
+    () => appointmentsByDate.filter((item) => item.status === 'cancelado'),
+    [appointmentsByDate]
   );
   const upcomingAppointments = useMemo(
     () => appointmentsByDate
@@ -1546,10 +1589,10 @@ export default function AdminPanel() {
 
   if (loading) {
     return (
-      <div style={{ minHeight: '100vh', background: 'radial-gradient(circle at top, rgba(21,171,209,0.12) 0%, rgba(6,14,22,1) 55%)', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: pagePadding }}>
+      <div style={{ minHeight: '100vh', background: '#F8FAFC', color: '#0F172A', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: pagePadding }}>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ color: '#15ABD1', letterSpacing: '0.22em', textTransform: 'uppercase', fontSize: '11px', marginBottom: '10px' }}>Painel administrativo</div>
-          <h1 style={{ margin: 0, fontFamily: "'Cormorant Garamond', serif", fontSize: '40px', fontWeight: 400 }}>Carregando ambiente</h1>
+          <div style={{ color: '#0EA5E9', letterSpacing: '0.12em', textTransform: 'uppercase', fontSize: '11px', marginBottom: '10px', fontWeight: 800 }}>Painel administrativo</div>
+          <h1 style={{ margin: 0, fontFamily: "'Inter', 'Outfit', system-ui, sans-serif", fontSize: '36px', fontWeight: 900 }}>Carregando ambiente</h1>
         </div>
       </div>
     );
@@ -1557,20 +1600,20 @@ export default function AdminPanel() {
 
   if (!currentUser) {
     return (
-      <div style={{ minHeight: '100vh', background: 'radial-gradient(circle at top, rgba(21,171,209,0.12) 0%, rgba(6,14,22,1) 55%)', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: pagePadding }}>
-        <form onSubmit={handleLogin} style={{ width: '100%', maxWidth: '480px', background: 'linear-gradient(180deg, rgba(8,22,31,0.98) 0%, rgba(6,14,22,0.98) 100%)', border: '1px solid rgba(21,171,209,0.16)', borderRadius: '28px', padding: isMobile ? '24px' : '34px', boxShadow: '0 32px 70px rgba(0,0,0,0.34)' }}>
-          <div style={{ color: '#15ABD1', textTransform: 'uppercase', letterSpacing: '0.24em', fontSize: '11px', marginBottom: '12px' }}>Painel Admin</div>
-          <h1 style={{ margin: '0 0 12px', fontFamily: "'Cormorant Garamond', serif", fontWeight: 400, fontSize: isMobile ? '34px' : '42px' }}>Entrar no painel</h1>
-          <p style={{ margin: '0 0 22px', color: 'rgba(244,251,248,0.66)', lineHeight: 1.8 }}>Acesse com o usuário individual da clínica para gerenciar agenda, pacientes e conteúdo autorizado.</p>
+      <div style={{ minHeight: '100vh', background: '#F8FAFC', color: '#0F172A', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: pagePadding }}>
+        <form onSubmit={handleLogin} style={{ width: '100%', maxWidth: '480px', background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '24px', padding: isMobile ? '24px' : '34px', boxShadow: '0 30px 70px rgba(15,23,42,0.12)' }}>
+          <div style={{ color: '#0EA5E9', textTransform: 'uppercase', letterSpacing: '0.12em', fontSize: '11px', marginBottom: '12px', fontWeight: 800 }}>Painel Admin</div>
+          <h1 style={{ margin: '0 0 12px', fontFamily: "'Inter', 'Outfit', system-ui, sans-serif", fontWeight: 900, fontSize: isMobile ? '30px' : '38px' }}>Entrar no painel</h1>
+          <p style={{ margin: '0 0 22px', color: '#64748B', lineHeight: 1.8 }}>Acesse com o usuário individual da clínica para gerenciar agenda, pacientes e conteúdo autorizado.</p>
           <Row minWidth={isMobile ? 180 : 220}>
             <Field label="Usuário" value={loginForm.username} onChange={(value) => setLoginForm((previous) => ({ ...previous, username: value }))} />
             <Field label="Senha" type="password" value={loginForm.password} onChange={(value) => setLoginForm((previous) => ({ ...previous, password: value }))} />
           </Row>
-          <div style={{ marginTop: '18px', color: 'rgba(244,251,248,0.58)', fontSize: '14px', lineHeight: 1.7, padding: '14px 16px', borderRadius: '16px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
+          <div style={{ marginTop: '18px', color: '#64748B', fontSize: '14px', lineHeight: 1.7, padding: '14px 16px', borderRadius: '16px', background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
             Use apenas o acesso fornecido pela administração. Em caso de esquecimento, solicite a redefinição da senha.
           </div>
           <div style={{ marginTop: '18px' }}><ActionButton type="submit" variant="primary" disabled={busyKey === 'login'} stretch={isMobile}>{busyKey === 'login' ? 'Entrando...' : 'Entrar'}</ActionButton></div>
-          {notice ? <div style={{ marginTop: '16px', borderRadius: '16px', padding: '14px 16px', background: notice.type === 'error' ? 'rgba(231,177,177,0.1)' : 'rgba(21,171,209,0.1)', border: notice.type === 'error' ? '1px solid rgba(231,177,177,0.24)' : '1px solid rgba(21,171,209,0.24)' }}>{notice.message}</div> : null}
+          {notice ? <div style={{ marginTop: '16px', borderRadius: '16px', padding: '14px 16px', background: notice.type === 'error' ? '#FEF2F2' : '#E0F2FE', border: notice.type === 'error' ? '1px solid #FECACA' : '1px solid #BAE6FD', color: notice.type === 'error' ? '#B91C1C' : '#075985', fontWeight: 700 }}>{notice.message}</div> : null}
         </form>
       </div>
     );
@@ -1578,24 +1621,59 @@ export default function AdminPanel() {
 
   return (
     <>
-      <div style={{ minHeight: '100vh', background: 'radial-gradient(circle at top, rgba(21,171,209,0.10) 0%, rgba(6,14,22,1) 58%)', color: '#FFFFFF', padding: pagePadding }}>
-        <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', flexDirection: isMobile ? 'column' : 'row', gap: '18px', flexWrap: 'wrap', marginBottom: '24px', padding: '20px 0' }}>
+      <div className="admin-app-shell">
+        {isAdmin ? (
+          <aside className="admin-sidebar">
+            <div className="admin-brand">
+              <span>WR</span>
+              <div>
+                <strong>Willian Holanda</strong>
+                <small>Painel medico</small>
+              </div>
+            </div>
+            <nav className="admin-sidebar-nav">
+              {adminSectionLinks.map((item) => (
+                <a key={`${item.href}-${item.label}`} href={item.href}>{item.label}</a>
+              ))}
+            </nav>
+          </aside>
+        ) : null}
+
+        <main className="admin-main" style={{ padding: pagePadding }}>
+        <div style={{ maxWidth: '1440px', margin: '0 auto' }}>
+        <div className="admin-topbar">
           <div>
-            <div style={{ color: '#15ABD1', textTransform: 'uppercase', letterSpacing: '0.22em', fontSize: '11px', marginBottom: '8px' }}>Painel Administrativo</div>
-            <h1 style={{ margin: 0, fontFamily: "'Cormorant Garamond', serif", fontSize: isMobile ? '38px' : '50px', fontWeight: 400 }}>Willian Holanda</h1>
-            <p style={{ margin: '10px 0 0', color: 'rgba(244,251,248,0.64)' }}>Logado como <strong>{currentUser.displayName}</strong> ({isAdmin ? 'Admin' : 'Equipe'})</p>
+            <div style={{ color: '#0EA5E9', textTransform: 'uppercase', letterSpacing: '0.12em', fontSize: '11px', marginBottom: '8px', fontWeight: 800 }}>Painel Administrativo</div>
+            <h1 style={{ margin: 0, fontFamily: "'Inter', 'Outfit', system-ui, sans-serif", fontSize: isMobile ? '30px' : '40px', fontWeight: 900, color: '#0F172A', letterSpacing: 0 }}>Willian Holanda</h1>
+            <p style={{ margin: '8px 0 0', color: '#64748B' }}>Logado como <strong>{currentUser.displayName}</strong> ({isAdmin ? 'Admin' : 'Equipe'})</p>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(150px, max-content))', gap: '12px', width: isMobile ? '100%' : 'auto' }}>
-            <a href={dashboardUrl} target="_blank" rel="noreferrer" style={{ color: '#FFFFFF' }}><ActionButton>Abrir sistema</ActionButton></a>
+          <div style={{ flex: '1 1 280px', maxWidth: isMobile ? '100%' : '420px', width: '100%' }}>
+            <Field label="Busca rápida" value={patientSearch} onChange={setPatientSearch} placeholder="Buscar paciente, CPF, data ou status" />
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(140px, max-content))', gap: '10px', width: isMobile ? '100%' : 'auto' }}>
+            <a href={dashboardUrl} target="_blank" rel="noreferrer" style={{ color: '#334155' }}><ActionButton>Abrir sistema</ActionButton></a>
             <ActionButton onClick={handleRefreshPanel} disabled={busyKey === 'refresh'} stretch={isMobile}>{busyKey === 'refresh' ? 'Atualizando...' : 'Atualizar agenda'}</ActionButton>
             <ActionButton onClick={handleSaveSchedule} variant="primary" disabled={busyKey === 'schedule'} stretch={isMobile}>{busyKey === 'schedule' ? 'Salvando agenda...' : 'Salvar agenda'}</ActionButton>
             <ActionButton onClick={logout} stretch={isMobile}>Sair</ActionButton>
           </div>
         </div>
 
-        {notice ? <div style={{ marginBottom: '20px', background: notice.type === 'error' ? 'rgba(231,177,177,0.1)' : 'rgba(21,171,209,0.1)', border: notice.type === 'error' ? '1px solid rgba(231,177,177,0.24)' : '1px solid rgba(21,171,209,0.24)', borderRadius: '16px', padding: '14px 16px' }}>{notice.message}</div> : null}
+        {notice ? <div style={{ marginBottom: '20px', background: notice.type === 'error' ? '#FEF2F2' : '#E0F2FE', border: notice.type === 'error' ? '1px solid #FECACA' : '1px solid #BAE6FD', color: notice.type === 'error' ? '#B91C1C' : '#075985', borderRadius: '16px', padding: '14px 16px', fontWeight: 700 }}>{notice.message}</div> : null}
+
+        <SectionCard id="dashboard-admin" eyebrow="Dashboard" title="Visão geral da operação" description="Resumo rápido para acompanhar agenda, pacientes, WhatsApp e disponibilidade do dia." style={{ padding: sectionPadding }}>
+          <Row minWidth={isMobile ? 160 : 190}>
+            <StatCard label="Consultas hoje" value={todayTypeCounts.consulta || 0} />
+            <StatCard label="Exames hoje" value={todayTypeCounts.exame || 0} tone="white" />
+            <StatCard label="Procedimentos hoje" value={todayTypeCounts.procedimento || 0} tone="white" />
+            <StatCard label="Pacientes aguardando" value={pendingAppointments.length} tone={pendingAppointments.length ? 'white' : 'green'} />
+            <StatCard label="Mensagens pendentes" value={whatsAppStatus?.activeConversations ?? 0} tone="white" />
+            <StatCard label="Faturamento do dia" value="-" tone="white" />
+            <StatCard label="Próximos agendamentos" value={upcomingAppointments.length} tone="green" />
+            <StatCard label="Cancelamentos" value={canceledAppointments.length} tone={canceledAppointments.length ? 'white' : 'green'} />
+          </Row>
+        </SectionCard>
         {isAdmin ? (
           <SectionCard id="whatsapp-admin" eyebrow="WhatsApp Oficial" title="Webhook, testes e operacao" description="Use esta area para validar a integracao oficial da Meta, disparar testes controlados e acompanhar os eventos mais recentes." style={{ padding: sectionPadding }}>
             <Row minWidth={isMobile ? 180 : 220}>
@@ -1606,9 +1684,9 @@ export default function AdminPanel() {
               <StatCard label="Responsavel" value={whatsAppStatus?.responsiblePhoneConfigured ? 'OK' : 'Pendente'} tone={whatsAppStatus?.responsiblePhoneConfigured ? 'green' : 'white'} />
             </Row>
 
-            <div style={{ padding: '18px', borderRadius: '20px', background: 'rgba(9,26,36,0.92)', border: '1px solid rgba(255,255,255,0.05)', display: 'grid', gap: '12px' }}>
+            <div style={{ padding: '18px', borderRadius: '20px', background: '#F8FAFC', border: '1px solid #E2E8F0', display: 'grid', gap: '12px' }}>
               <strong style={{ fontSize: '18px' }}>Status atual</strong>
-              <div style={{ color: 'rgba(244,251,248,0.68)', lineHeight: 1.8 }}>
+              <div style={{ color: '#64748B', lineHeight: 1.8 }}>
                 <div><strong>Webhook:</strong> {whatsAppStatus?.callbackUrl || '-'}</div>
                 <div><strong>Versao Graph:</strong> {whatsAppStatus?.graphVersion || '-'}</div>
                 <div><strong>Modo de envio:</strong> {whatsAppStatus?.deliveryMode === 'temporary_qr' ? 'Bot temporario por QR code' : 'Cloud API oficial da Meta'}</div>
@@ -1620,7 +1698,7 @@ export default function AdminPanel() {
                 <div><strong>Fallback texto medico:</strong> {whatsAppStatus?.doctorFallbackTextEnabled ? 'Ativo' : 'Desligado'}</div>
               </div>
               {whatsAppStatus?.temporaryQr?.qrDataUrl && !whatsAppStatus?.temporaryQr?.connected ? (
-                <div style={{ display: 'grid', gap: '10px', justifyItems: 'start', padding: '14px', borderRadius: '8px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                <div style={{ display: 'grid', gap: '10px', justifyItems: 'start', padding: '14px', borderRadius: '8px', background: 'rgba(255,255,255,0.04)', border: '1px solid #E2E8F0' }}>
                   <strong style={{ fontSize: '16px' }}>QR code do WhatsApp</strong>
                   <img src={whatsAppStatus.temporaryQr.qrDataUrl} alt="QR code para conectar WhatsApp" style={{ width: '100%', maxWidth: '260px', borderRadius: '8px', background: '#FFFFFF', padding: '8px' }} />
                 </div>
@@ -1631,10 +1709,10 @@ export default function AdminPanel() {
               </div>
             </div>
 
-            <div style={{ padding: '18px', borderRadius: '8px', background: 'rgba(9,26,36,0.92)', border: '1px solid rgba(21,171,209,0.16)', display: 'grid', gap: '14px' }}>
+            <div style={{ padding: '18px', borderRadius: '8px', background: '#F8FAFC', border: '1px solid #E0F2FE', display: 'grid', gap: '14px' }}>
               <div>
                 <strong style={{ display: 'block', fontSize: '18px', marginBottom: '6px' }}>Responsável pelos atendimentos</strong>
-                <p style={{ margin: 0, color: 'rgba(244,251,248,0.62)', lineHeight: 1.7 }}>
+                <p style={{ margin: 0, color: '#64748B', lineHeight: 1.7 }}>
                   Este número recebe os resumos quando o cliente pede atendente, quer pagar ou confirma um agendamento pelo WhatsApp.
                 </p>
               </div>
@@ -1650,16 +1728,16 @@ export default function AdminPanel() {
                   {busyKey === 'whatsapp-responsible-test' ? 'Enviando teste...' : 'Testar aviso'}
                 </ActionButton>
               </div>
-              <div style={{ color: 'rgba(244,251,248,0.58)', fontSize: '13px', lineHeight: 1.7 }}>
+              <div style={{ color: '#94A3B8', fontSize: '13px', lineHeight: 1.7 }}>
                 Atual: {whatsAppStatus?.responsiblePhone ? `${whatsAppStatus.responsiblePhone}${whatsAppStatus?.responsibleSource === 'panel' ? ' (painel)' : ' (.env)'}` : 'nenhum número configurado'}
               </div>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: isTablet ? '1fr' : '1fr 1fr', gap: '18px' }}>
-              <div style={{ padding: '18px', borderRadius: '20px', background: 'rgba(9,26,36,0.92)', border: '1px solid rgba(255,255,255,0.05)', display: 'grid', gap: '14px' }}>
+              <div style={{ padding: '18px', borderRadius: '20px', background: '#F8FAFC', border: '1px solid #E2E8F0', display: 'grid', gap: '14px' }}>
                 <div>
                   <strong style={{ display: 'block', fontSize: '18px', marginBottom: '6px' }}>Simular mensagem recebida</strong>
-                  <p style={{ margin: 0, color: 'rgba(244,251,248,0.62)', lineHeight: 1.7 }}>Teste o fluxo guiado sem depender da Meta.</p>
+                  <p style={{ margin: 0, color: '#64748B', lineHeight: 1.7 }}>Teste o fluxo guiado sem depender da Meta.</p>
                 </div>
                 <Field label="Telefone do paciente" value={whatsAppSimulationForm.from} onChange={(value) => setWhatsAppSimulationForm((previous) => ({ ...previous, from: value }))} />
                 <Field label="Nome do perfil" value={whatsAppSimulationForm.profileName} onChange={(value) => setWhatsAppSimulationForm((previous) => ({ ...previous, profileName: value }))} />
@@ -1667,10 +1745,10 @@ export default function AdminPanel() {
                 <ActionButton onClick={handleSimulateWhatsApp} variant="primary" disabled={busyKey === 'whatsapp-simulate'} stretch={isMobile}>{busyKey === 'whatsapp-simulate' ? 'Processando simulacao...' : 'Simular entrada'}</ActionButton>
               </div>
 
-              <div style={{ padding: '18px', borderRadius: '20px', background: 'rgba(9,26,36,0.92)', border: '1px solid rgba(255,255,255,0.05)', display: 'grid', gap: '14px' }}>
+              <div style={{ padding: '18px', borderRadius: '20px', background: '#F8FAFC', border: '1px solid #E2E8F0', display: 'grid', gap: '14px' }}>
                 <div>
                   <strong style={{ display: 'block', fontSize: '18px', marginBottom: '6px' }}>Enviar mensagem de teste</strong>
-                  <p style={{ margin: 0, color: 'rgba(244,251,248,0.62)', lineHeight: 1.7 }}>Confirme que o numero oficial responde pela Cloud API.</p>
+                  <p style={{ margin: 0, color: '#64748B', lineHeight: 1.7 }}>Confirme que o numero oficial responde pela Cloud API.</p>
                 </div>
                 <Field label="Numero destino" value={whatsAppOutboundForm.to} onChange={(value) => setWhatsAppOutboundForm((previous) => ({ ...previous, to: value }))} />
                 <Field label="Mensagem" value={whatsAppOutboundForm.text} onChange={(value) => setWhatsAppOutboundForm((previous) => ({ ...previous, text: value }))} multiline />
@@ -1678,10 +1756,10 @@ export default function AdminPanel() {
               </div>
             </div>
 
-            <div style={{ padding: '18px', borderRadius: '20px', background: 'rgba(9,26,36,0.92)', border: '1px solid rgba(255,255,255,0.05)', display: 'grid', gap: '14px' }}>
+            <div style={{ padding: '18px', borderRadius: '20px', background: '#F8FAFC', border: '1px solid #E2E8F0', display: 'grid', gap: '14px' }}>
               <div>
                 <strong style={{ display: 'block', fontSize: '18px', marginBottom: '6px' }}>Testar notificacao do medico</strong>
-                <p style={{ margin: 0, color: 'rgba(244,251,248,0.62)', lineHeight: 1.7 }}>Envia um resumo de teste para validar o template oficial e o numero configurado.</p>
+                <p style={{ margin: 0, color: '#64748B', lineHeight: 1.7 }}>Envia um resumo de teste para validar o template oficial e o numero configurado.</p>
               </div>
               <Row minWidth={isMobile ? 180 : 220}>
                 <Field label="Paciente" value={doctorNotificationForm.fullName} onChange={(value) => setDoctorNotificationForm((previous) => ({ ...previous, fullName: value }))} />
@@ -1696,18 +1774,18 @@ export default function AdminPanel() {
             <div style={{ display: 'grid', gap: '10px' }}>
               <strong style={{ fontSize: '18px' }}>Eventos recentes</strong>
               {whatsAppEvents.length === 0 ? (
-                <p style={{ margin: 0, color: 'rgba(244,251,248,0.62)', lineHeight: 1.7 }}>Ainda nao existem eventos recentes do WhatsApp.</p>
+                <p style={{ margin: 0, color: '#64748B', lineHeight: 1.7 }}>Ainda nao existem eventos recentes do WhatsApp.</p>
               ) : (
                 whatsAppEvents.slice(0, 20).map((event) => (
-                  <div key={`${event.id}-${event.metaMessageId || 'local'}`} style={{ padding: '14px', borderRadius: '16px', background: 'rgba(9,26,36,0.92)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                  <div key={`${event.id}-${event.metaMessageId || 'local'}`} style={{ padding: '14px', borderRadius: '16px', background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
                       <div>
                         <strong style={{ display: 'block', marginBottom: '4px' }}>{event.direction} · {event.status}</strong>
-                        <span style={{ color: 'rgba(244,251,248,0.62)', fontSize: '13px' }}>{event.phoneNumber || '-'} · {formatDateTimeLabel(event.createdAt)}</span>
+                        <span style={{ color: '#64748B', fontSize: '13px' }}>{event.phoneNumber || '-'} · {formatDateTimeLabel(event.createdAt)}</span>
                       </div>
                       <span style={{ color: '#15ABD1', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{event.messageType}</span>
                     </div>
-                    <div style={{ marginTop: '8px', color: 'rgba(244,251,248,0.76)', lineHeight: 1.7 }}>{event.messageText || 'Evento sem corpo de texto.'}</div>
+                    <div style={{ marginTop: '8px', color: '#475569', lineHeight: 1.7 }}>{event.messageText || 'Evento sem corpo de texto.'}</div>
                   </div>
                 ))
               )}
@@ -1717,7 +1795,7 @@ export default function AdminPanel() {
 
         {isAdmin ? (
           <div style={{ position: 'sticky', top: '12px', zIndex: 4, marginBottom: '20px' }}>
-            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', padding: isMobile ? '14px' : '16px', borderRadius: '20px', background: 'rgba(6,14,22,0.88)', border: '1px solid rgba(21,171,209,0.16)', backdropFilter: 'blur(12px)' }}>
+            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', padding: isMobile ? '14px' : '16px', borderRadius: '20px', background: 'rgba(6,14,22,0.88)', border: '1px solid #E0F2FE', backdropFilter: 'blur(12px)' }}>
               {adminSectionLinks.map((item) => (
                 <SectionMenuLink key={item.href} href={item.href} label={item.label} />
               ))}
@@ -1746,11 +1824,11 @@ export default function AdminPanel() {
             </QuickActionCard> : null}
           </Row>
           {!adminScheduleOnly ? (
-            <div style={{ marginTop: '18px', background: 'rgba(9,26,36,0.92)', borderRadius: '22px', padding: '20px', border: '1px solid rgba(255,255,255,0.05)' }}>
+            <div style={{ marginTop: '18px', background: '#F8FAFC', borderRadius: '22px', padding: '20px', border: '1px solid #E2E8F0' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', alignItems: 'center', marginBottom: '14px' }}>
                 <div>
                   <strong style={{ display: 'block', marginBottom: '6px', fontSize: '18px' }}>Próximos pacientes</strong>
-                  <span style={{ color: 'rgba(244,251,248,0.62)', fontSize: '14px', lineHeight: 1.7 }}>
+                  <span style={{ color: '#64748B', fontSize: '14px', lineHeight: 1.7 }}>
                     Resumo rápido para a recepção saber quem vem a seguir.
                   </span>
                 </div>
@@ -1761,7 +1839,7 @@ export default function AdminPanel() {
                 ) : null}
               </div>
               {upcomingAppointments.length === 0 ? (
-                <p style={{ margin: 0, color: 'rgba(244,251,248,0.62)', lineHeight: 1.7 }}>
+                <p style={{ margin: 0, color: '#64748B', lineHeight: 1.7 }}>
                   Ainda não existem pacientes agendados para os próximos dias.
                 </p>
               ) : (
@@ -1771,12 +1849,12 @@ export default function AdminPanel() {
                       key={item.id}
                       type="button"
                       onClick={() => openAppointmentDetails(item.id)}
-                      style={{ textAlign: 'left', padding: '14px 16px', borderRadius: '18px', background: item.date === todayDate ? 'rgba(17,175,186,0.12)' : 'rgba(255,255,255,0.04)', border: item.date === todayDate ? '1px solid rgba(17,175,186,0.24)' : '1px solid rgba(255,255,255,0.05)', color: '#FFFFFF', cursor: 'pointer' }}
+                      style={{ textAlign: 'left', padding: '14px 16px', borderRadius: '18px', background: item.date === todayDate ? '#DCFCE7' : 'rgba(255,255,255,0.04)', border: item.date === todayDate ? '1px solid #BBF7D0' : '1px solid #E2E8F0', color: '#FFFFFF', cursor: 'pointer' }}
                     >
                       <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
                         <div>
                           <strong style={{ display: 'block', marginBottom: '4px' }}>{item.fullName}</strong>
-                          <span style={{ color: 'rgba(244,251,248,0.62)', fontSize: '13px' }}>
+                          <span style={{ color: '#64748B', fontSize: '13px' }}>
                             {item.procedureName || 'Procedimento a definir'}
                           </span>
                         </div>
@@ -1798,11 +1876,11 @@ export default function AdminPanel() {
         {!adminScheduleOnly && systemCheckReport ? (
           <SectionCard eyebrow="Diagnóstico" title="Último teste do sistema" description="Esse relatório ajuda o suporte a entender rapidamente se o problema está no login, agenda, painel ou WhatsApp." style={{ padding: sectionPadding }}>
             <div style={{ display: 'grid', gap: '12px' }}>
-              <div style={{ padding: '16px 18px', borderRadius: '18px', background: systemCheckReport.ok ? 'rgba(17,175,186,0.12)' : 'rgba(231,177,177,0.12)', border: systemCheckReport.ok ? '1px solid rgba(17,175,186,0.24)' : '1px solid rgba(231,177,177,0.24)' }}>
+              <div style={{ padding: '16px 18px', borderRadius: '18px', background: systemCheckReport.ok ? '#DCFCE7' : '#FEF2F2', border: systemCheckReport.ok ? '1px solid #BBF7D0' : '1px solid #FECACA' }}>
                 <strong style={{ display: 'block', marginBottom: '6px', color: systemCheckReport.ok ? '#BEEFFF' : '#F2C6C6' }}>
                   {systemCheckReport.ok ? 'Sistema aprovado nas verificações principais' : 'Foram encontrados pontos para revisar'}
                 </strong>
-                <div style={{ color: 'rgba(244,251,248,0.76)', lineHeight: 1.7 }}>
+                <div style={{ color: '#475569', lineHeight: 1.7 }}>
                   <div><strong>Resumo:</strong> {systemCheckReport.summary}</div>
                   <div><strong>Executado em:</strong> {systemCheckReport.finishedAt ? new Date(systemCheckReport.finishedAt).toLocaleString('pt-BR') : '-'}</div>
                   <div><strong>Perfil:</strong> {systemCheckReport.role === 'admin' ? 'Administração' : 'Recepção'}</div>
@@ -1811,13 +1889,13 @@ export default function AdminPanel() {
 
               <div style={{ display: 'grid', gap: '10px' }}>
                 {systemCheckReport.checks.map((item) => (
-                  <div key={item.key} style={{ padding: '14px 16px', borderRadius: '18px', background: 'rgba(9,26,36,0.92)', border: item.ok ? '1px solid rgba(17,175,186,0.20)' : '1px solid rgba(231,177,177,0.24)' }}>
+                  <div key={item.key} style={{ padding: '14px 16px', borderRadius: '18px', background: '#F8FAFC', border: item.ok ? '1px solid #BBF7D0' : '1px solid #FECACA' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', marginBottom: '8px' }}>
                       <strong>{item.label}</strong>
                       <span style={{ color: item.ok ? '#BEEFFF' : '#F2C6C6', fontSize: '13px' }}>{item.ok ? 'OK' : 'Falhou'}</span>
                     </div>
                     {item.ok ? (
-                      <div style={{ color: 'rgba(244,251,248,0.72)', fontSize: '13px', lineHeight: 1.7 }}>
+                      <div style={{ color: '#475569', fontSize: '13px', lineHeight: 1.7 }}>
                         {Object.entries(item.details || {}).map(([key, value]) => (
                           <div key={key}><strong>{key}:</strong> {String(value)}</div>
                         ))}
@@ -1847,7 +1925,7 @@ export default function AdminPanel() {
             <div style={{ display: 'grid', gap: '14px' }}>
               <div>
                 <strong style={{ display: 'block', marginBottom: '6px', fontSize: '18px' }}>Resumo de desempenho</strong>
-                <p style={{ margin: 0, color: 'rgba(244,251,248,0.62)', lineHeight: 1.7 }}>
+                <p style={{ margin: 0, color: '#64748B', lineHeight: 1.7 }}>
                   Acompanhe semana, quinzena e mês atual com base nos agendamentos da agenda.
                 </p>
               </div>
@@ -1858,21 +1936,21 @@ export default function AdminPanel() {
               </Row>
             </div>
 
-            <div style={{ background: 'rgba(9,26,36,0.92)', borderRadius: '20px', padding: '20px', border: '1px solid rgba(255,255,255,0.05)' }}>
+            <div style={{ background: '#F8FAFC', borderRadius: '20px', padding: '20px', border: '1px solid #E2E8F0' }}>
               <strong style={{ display: 'block', marginBottom: '12px', fontSize: '18px' }}>
                 Atendimentos de hoje
               </strong>
               {todayAppointments.length === 0 ? (
-                <p style={{ margin: 0, color: 'rgba(244,251,248,0.62)', lineHeight: 1.7 }}>
+                <p style={{ margin: 0, color: '#64748B', lineHeight: 1.7 }}>
                   Nenhum atendimento ativo para hoje.
                 </p>
               ) : (
                 <div style={{ display: 'grid', gap: '10px' }}>
                   {todayAppointments.map((item) => (
-                    <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', padding: '12px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                    <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', padding: '12px 0', borderBottom: '1px solid #E2E8F0' }}>
                       <div>
                         <strong style={{ display: 'block' }}>{item.fullName}</strong>
-                        <span style={{ color: 'rgba(244,251,248,0.62)', fontSize: '14px' }}>{item.procedureName || 'Procedimento a definir'}</span>
+                        <span style={{ color: '#64748B', fontSize: '14px' }}>{item.procedureName || 'Procedimento a definir'}</span>
                       </div>
                       <span style={{ color: '#15ABD1', fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
                         {item.status}
@@ -1885,7 +1963,7 @@ export default function AdminPanel() {
           </SectionCard>
         ) : null}
 
-        <SectionCard id="agenda-admin" eyebrow="Agenda" title="Agenda simples" description="Escolha um dia, libere ou bloqueie horários e acompanhe os pacientes agendados sem sair da tela." style={{ padding: sectionPadding }}>
+        <SectionCard id="agenda-admin" eyebrow="Agenda" title="Agenda médica" description="Libere dias, organize horários e acompanhe consultas, exames e procedimentos em uma tela única." style={{ padding: sectionPadding }}>
           <Row minWidth={isMobile ? 150 : 190}>
             <StatCard label="Dias com vaga" value={receptionistAvailableDates.length} tone="green" />
             <StatCard label="Horários livres" value={Object.values(freeTimeSlotsByDate).reduce((total, items) => total + items.length, 0)} tone="green" />
@@ -1894,7 +1972,7 @@ export default function AdminPanel() {
           </Row>
 
           <div style={{ display: 'grid', gridTemplateColumns: isTablet ? '1fr' : 'minmax(360px, 1fr) minmax(360px, 0.95fr)', gap: '16px', alignItems: 'start' }}>
-            <div style={{ background: 'rgba(9,26,36,0.88)', borderRadius: '8px', padding: isMobile ? '14px' : '18px', border: '1px solid rgba(255,255,255,0.06)', display: 'grid', gap: '14px' }}>
+            <div style={{ background: '#F8FAFC', borderRadius: '8px', padding: isMobile ? '14px' : '18px', border: '1px solid #E2E8F0', display: 'grid', gap: '14px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', gap: '12px', flexWrap: 'wrap' }}>
                 <ActionButton onClick={() => {
                   autoFollowSystemMonth.current = false;
@@ -1909,7 +1987,7 @@ export default function AdminPanel() {
 
               {isAdmin ? (
                 <>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: calendarGap, marginBottom: '10px', textAlign: 'center', color: 'rgba(244,251,248,0.6)', fontSize: isMobile ? '10px' : '12px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: calendarGap, marginBottom: '10px', textAlign: 'center', color: '#94A3B8', fontSize: isMobile ? '10px' : '12px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                     {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab'].map((item) => <div key={item}>{item}</div>)}
                   </div>
 
@@ -1931,11 +2009,11 @@ export default function AdminPanel() {
                           ? '#FFFFFF'
                           : 'rgba(244,251,248,0.38)';
                       const dayBackground = isAvailable
-                        ? 'rgba(21,171,209,0.16)'
-                        : 'rgba(7,18,27,0.65)';
+                        ? '#E0F2FE'
+                        : '#FFFFFF';
 
                       return (
-                        <button key={dateString} type="button" onClick={() => setSelectedCalendarDate(dateString)} style={{ minHeight: calendarCellMinHeight, padding: isMobile ? '6px' : '8px', borderRadius: '8px', border: isSelected ? '1px solid #15ABD1' : hasAppointment ? '1px solid rgba(17,175,186,0.7)' : '1px solid rgba(255,255,255,0.06)', background: dayBackground, color: dayTextColor, cursor: 'pointer', opacity: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <button key={dateString} type="button" onClick={() => setSelectedCalendarDate(dateString)} style={{ minHeight: calendarCellMinHeight, padding: isMobile ? '6px' : '8px', borderRadius: '8px', border: isSelected ? '1px solid #15ABD1' : hasAppointment ? '1px solid rgba(17,175,186,0.7)' : '1px solid #E2E8F0', background: dayBackground, color: dayTextColor, cursor: 'pointer', opacity: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                           <span style={{ fontSize: isMobile ? '12px' : '13px' }}>{date.getDate()}</span>
                           <div style={{ display: 'grid', gap: '2px' }}>
                             {hasFreeSlot ? <span style={{ fontSize: isMobile ? '9px' : '10px', color: freeSlots === 1 ? '#D9F7FF' : '#7AE1A5' }}>{freeSlots === 1 ? 'Última vaga' : `${freeSlots} vaga(s)`}</span> : null}
@@ -1949,10 +2027,10 @@ export default function AdminPanel() {
                 </>
               ) : (
                 <div style={{ display: 'grid', gap: '10px' }}>
-                  <p style={{ margin: 0, color: 'rgba(244,251,248,0.62)', lineHeight: 1.7 }}>
+                  <p style={{ margin: 0, color: '#64748B', lineHeight: 1.7 }}>
                     Clique em um dia com vaga para escolher o horário e cadastrar o paciente.
                   </p>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: calendarGap, marginBottom: '2px', textAlign: 'center', color: 'rgba(244,251,248,0.6)', fontSize: isMobile ? '10px' : '12px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: calendarGap, marginBottom: '2px', textAlign: 'center', color: '#94A3B8', fontSize: isMobile ? '10px' : '12px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                     {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab'].map((item) => <div key={item}>{item}</div>)}
                   </div>
                   {monthGrid.every((date) => (freeTimeSlotsByDate[date.toISOString().slice(0, 10)] || []).length === 0) ? (
@@ -1969,7 +2047,7 @@ export default function AdminPanel() {
                         const isSelected = selectedCalendarDate === dateString;
 
                         return (
-                          <button key={dateString} type="button" disabled={!hasFreeSlot} onClick={() => openAppointmentModal(dateString)} style={{ minHeight: calendarCellMinHeight, padding: isMobile ? '6px' : '8px', borderRadius: '16px', border: isSelected ? '1px solid #15ABD1' : hasFreeSlot ? '1px solid rgba(21,171,209,0.28)' : '1px solid rgba(255,255,255,0.05)', background: hasFreeSlot ? 'rgba(21,171,209,0.15)' : 'rgba(7,18,27,0.55)', color: !isCurrentMonth ? 'rgba(244,251,248,0.18)' : hasFreeSlot ? '#FFFFFF' : 'rgba(244,251,248,0.32)', cursor: hasFreeSlot ? 'pointer' : 'not-allowed', opacity: isCurrentMonth ? 1 : 0.62, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                          <button key={dateString} type="button" disabled={!hasFreeSlot} onClick={() => openAppointmentModal(dateString)} style={{ minHeight: calendarCellMinHeight, padding: isMobile ? '6px' : '8px', borderRadius: '16px', border: isSelected ? '1px solid #15ABD1' : hasFreeSlot ? '1px solid #7DD3FC' : '1px solid #E2E8F0', background: hasFreeSlot ? 'rgba(21,171,209,0.15)' : '#FFFFFF', color: !isCurrentMonth ? 'rgba(244,251,248,0.18)' : hasFreeSlot ? '#FFFFFF' : 'rgba(244,251,248,0.32)', cursor: hasFreeSlot ? 'pointer' : 'not-allowed', opacity: isCurrentMonth ? 1 : 0.62, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                             <span style={{ fontSize: isMobile ? '12px' : '13px' }}>{date.getDate()}</span>
                             {hasFreeSlot ? (
                               <span style={{ fontSize: isMobile ? '9px' : '10px', color: freeSlots === 1 ? '#D9F7FF' : '#BEEFFF' }}>
@@ -1986,29 +2064,55 @@ export default function AdminPanel() {
 
               <div style={{ marginTop: '18px', display: 'grid', gap: '12px' }}>
                 <CalendarLegend />
-                {!isAdmin ? <div style={{ color: 'rgba(244,251,248,0.58)', fontSize: '13px' }}>Somente a administração pode liberar ou bloquear datas e horários.</div> : null}
+                {!isAdmin ? <div style={{ color: '#94A3B8', fontSize: '13px' }}>Somente a administração pode liberar ou bloquear datas e horários.</div> : null}
               </div>
             </div>
 
             <div style={{ display: 'grid', gap: '16px' }}>
-              <div style={{ background: 'rgba(9,26,36,0.88)', borderRadius: '8px', padding: isMobile ? '14px' : '18px', border: '1px solid rgba(255,255,255,0.06)' }}>
+              <div style={{ background: '#F8FAFC', borderRadius: '8px', padding: isMobile ? '14px' : '18px', border: '1px solid #E2E8F0' }}>
                 <strong style={{ display: 'block', marginBottom: '14px', fontSize: '18px' }}>Horários do dia</strong>
-                <p style={{ margin: '0 0 14px', color: 'rgba(244,251,248,0.62)', lineHeight: 1.7 }}>
+                <p style={{ margin: '0 0 14px', color: '#64748B', lineHeight: 1.7 }}>
                   {selectedCalendarDate ? formatDateLabel(selectedCalendarDate) : 'Selecione um dia no calendário para ver ou editar os horários.'}
                 </p>
                 {selectedCalendarDate ? (
                   <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '14px' }}>
-                    <span style={{ borderRadius: '999px', padding: '8px 12px', background: 'rgba(255,255,255,0.05)', fontSize: '12px' }}>{selectedDateSlots.length} horário(s)</span>
-                    <span style={{ borderRadius: '999px', padding: '8px 12px', background: 'rgba(17,175,186,0.12)', color: '#BEEFFF', fontSize: '12px' }}>{selectedDateFreeSlots.length} livre(s)</span>
-                    <span style={{ borderRadius: '999px', padding: '8px 12px', background: 'rgba(231,177,177,0.12)', color: '#E7B1B1', fontSize: '12px' }}>{selectedDateOccupiedSlots.length} ocupado(s)</span>
-                    {selectedDateFreeSlots.length === 1 ? <span style={{ borderRadius: '999px', padding: '8px 12px', background: 'rgba(21,171,209,0.16)', color: '#D9F7FF', fontSize: '12px' }}>Última vaga</span> : null}
-                    {selectedDateIsFull ? <span style={{ borderRadius: '999px', padding: '8px 12px', background: 'rgba(231,177,177,0.12)', color: '#E7B1B1', fontSize: '12px' }}>Dia lotado</span> : null}
+                    <span style={{ borderRadius: '999px', padding: '8px 12px', background: '#E2E8F0', fontSize: '12px' }}>{selectedDateSlots.length} horário(s)</span>
+                    <span style={{ borderRadius: '999px', padding: '8px 12px', background: '#DCFCE7', color: '#BEEFFF', fontSize: '12px' }}>{selectedDateFreeSlots.length} livre(s)</span>
+                    <span style={{ borderRadius: '999px', padding: '8px 12px', background: '#FEF2F2', color: '#E7B1B1', fontSize: '12px' }}>{selectedDateOccupiedSlots.length} ocupado(s)</span>
+                    {selectedDateFreeSlots.length === 1 ? <span style={{ borderRadius: '999px', padding: '8px 12px', background: '#E0F2FE', color: '#D9F7FF', fontSize: '12px' }}>Última vaga</span> : null}
+                    {selectedDateIsFull ? <span style={{ borderRadius: '999px', padding: '8px 12px', background: '#FEF2F2', color: '#E7B1B1', fontSize: '12px' }}>Dia lotado</span> : null}
                   </div>
                 ) : null}
                 {selectedCalendarDate ? (
                   <>
                     {isAdmin ? (
                       <div style={{ display: 'grid', gap: '12px' }}>
+                        <div style={{ display: 'grid', gap: '8px' }}>
+                          <div style={{ color: '#64748B', fontSize: '11px', letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 800 }}>Tipo de horário</div>
+                          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))', gap: '8px' }}>
+                            {medicalTypeOptions.map((item) => {
+                              const selected = slotReleaseType === item.key;
+                              return (
+                                <button
+                                  key={item.key}
+                                  type="button"
+                                  onClick={() => setSlotReleaseType(item.key)}
+                                  style={{
+                                    minHeight: '48px',
+                                    borderRadius: '12px',
+                                    border: selected ? `1px solid ${item.color}` : '1px solid #E2E8F0',
+                                    background: selected ? item.background : '#FFFFFF',
+                                    color: selected ? item.color : '#334155',
+                                    fontWeight: 900,
+                                    cursor: 'pointer',
+                                  }}
+                                >
+                                  Liberar Horário para {item.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
                         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                           <ActionButton onClick={() => toggleAvailableDate(selectedCalendarDate)} variant={draft.admin.availableDates.includes(selectedCalendarDate) ? 'danger' : 'primary'} disabled={busyKey === 'schedule'} stretch={isMobile} style={compactButtonStyle}>
                             {busyKey === 'schedule' ? 'Salvando...' : draft.admin.availableDates.includes(selectedCalendarDate) ? 'Bloquear dia' : 'Liberar dia'}
@@ -2027,15 +2131,15 @@ export default function AdminPanel() {
 
                     <div style={{ display: 'grid', gap: '10px', marginTop: '14px', maxHeight: isMobile ? '360px' : '520px', overflowY: 'auto', paddingRight: selectedDateSlots.length > 8 ? '4px' : 0 }}>
                       {(selectedDateSlots.length === 0) ? (
-                        <p style={{ margin: 0, color: 'rgba(244,251,248,0.62)' }}>
+                        <p style={{ margin: 0, color: '#64748B' }}>
                           Nenhum horário cadastrado para este dia.
                         </p>
                       ) : (
                         selectedDateSlots.map((time) => (
-                          <div key={time} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '8px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                          <div key={time} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '8px', background: 'rgba(255,255,255,0.04)', border: '1px solid #E2E8F0' }}>
                             <div>
                               <strong>{time}</strong>
-                              <div style={{ color: 'rgba(244,251,248,0.62)', fontSize: '13px' }}>
+                              <div style={{ color: '#64748B', fontSize: '13px' }}>
                                 {(selectedDateFreeSlots || []).includes(time) ? 'Horário livre' : 'Horário ocupado'}
                               </div>
                             </div>
@@ -2048,22 +2152,22 @@ export default function AdminPanel() {
                 ) : null}
               </div>
 
-              <div style={{ background: 'rgba(9,26,36,0.88)', borderRadius: '8px', padding: isMobile ? '14px' : '18px', border: '1px solid rgba(255,255,255,0.06)' }}>
+              <div style={{ background: '#F8FAFC', borderRadius: '8px', padding: isMobile ? '14px' : '18px', border: '1px solid #E2E8F0' }}>
                 <strong style={{ display: 'block', marginBottom: '14px', fontSize: '18px' }}>Agendamentos do dia</strong>
                 {!selectedCalendarDate ? (
-                  <p style={{ margin: 0, color: 'rgba(244,251,248,0.62)', lineHeight: 1.7 }}>Selecione uma data no calendário.</p>
+                  <p style={{ margin: 0, color: '#64748B', lineHeight: 1.7 }}>Selecione uma data no calendário.</p>
                 ) : selectedDateAppointments.length === 0 ? (
-                  <p style={{ margin: 0, color: 'rgba(244,251,248,0.62)', lineHeight: 1.7 }}>Nenhum paciente ativo neste dia.</p>
+                  <p style={{ margin: 0, color: '#64748B', lineHeight: 1.7 }}>Nenhum paciente ativo neste dia.</p>
                 ) : (
                   <div style={{ display: 'grid', gap: '8px' }}>
                     {selectedDateAppointments.map((appointment) => (
-                      <button key={appointment.id} type="button" onClick={() => openAppointmentDetails(appointment.id)} style={{ textAlign: 'left', borderRadius: '8px', padding: '12px', border: '1px solid rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.04)', color: '#FFFFFF', cursor: 'pointer' }}>
+                      <button key={appointment.id} type="button" onClick={() => openAppointmentDetails(appointment.id)} style={{ textAlign: 'left', borderRadius: '8px', padding: '12px', border: '1px solid #E2E8F0', background: 'rgba(255,255,255,0.04)', color: '#FFFFFF', cursor: 'pointer' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', alignItems: 'center' }}>
                           <div>
                             <strong style={{ display: 'block', fontSize: '15px' }}>{appointment.fullName}</strong>
-                            <span style={{ color: 'rgba(244,251,248,0.64)', fontSize: '13px' }}>{appointment.time || 'Sem horário'} · {appointment.procedureName || 'Procedimento a definir'}</span>
+                            <span style={{ color: '#64748B', fontSize: '13px' }}>{appointment.time || 'Sem horário'} · {appointment.procedureName || 'Procedimento a definir'}</span>
                           </div>
-                          <span style={{ borderRadius: '8px', padding: '7px 10px', background: appointment.source === 'whatsapp' ? 'rgba(21,171,209,0.14)' : 'rgba(255,255,255,0.06)', color: appointment.source === 'whatsapp' ? '#D9F7FF' : 'rgba(244,251,248,0.72)', fontSize: '12px' }}>{appointment.source === 'whatsapp' ? 'WhatsApp' : 'Painel'}</span>
+                          <span style={{ borderRadius: '8px', padding: '7px 10px', background: appointment.source === 'whatsapp' ? '#E0F2FE' : '#E2E8F0', color: appointment.source === 'whatsapp' ? '#D9F7FF' : '#475569', fontSize: '12px' }}>{appointment.source === 'whatsapp' ? 'WhatsApp' : 'Painel'}</span>
                         </div>
                       </button>
                     ))}
@@ -2071,18 +2175,18 @@ export default function AdminPanel() {
                 )}
               </div>
 
-              <div style={{ background: 'rgba(9,26,36,0.88)', borderRadius: '8px', padding: isMobile ? '14px' : '18px', border: '1px solid rgba(255,255,255,0.06)' }}>
+              <div style={{ background: '#F8FAFC', borderRadius: '8px', padding: isMobile ? '14px' : '18px', border: '1px solid #E2E8F0' }}>
                 <strong style={{ display: 'block', marginBottom: '14px', fontSize: '18px' }}>Próximas vagas</strong>
                 {upcomingHighlights.length === 0 ? (
-                  <p style={{ margin: 0, color: 'rgba(244,251,248,0.62)', lineHeight: 1.7 }}>Ainda não existem datas abertas com horário livre.</p>
+                  <p style={{ margin: 0, color: '#64748B', lineHeight: 1.7 }}>Ainda não existem datas abertas com horário livre.</p>
                 ) : (
                   <div style={{ display: 'grid', gap: '8px' }}>
                     {upcomingHighlights.slice(0, 5).map((date) => {
                       const freeSlotsCount = (freeTimeSlotsByDate[date] || []).length;
                       return (
-                        <button key={date} type="button" onClick={() => jumpToDate(date)} style={{ textAlign: 'left', padding: '12px', borderRadius: '8px', background: 'rgba(21,171,209,0.10)', border: '1px solid rgba(21,171,209,0.20)', color: '#D9F7FF', cursor: 'pointer' }}>
+                        <button key={date} type="button" onClick={() => jumpToDate(date)} style={{ textAlign: 'left', padding: '12px', borderRadius: '8px', background: '#E0F2FE', border: '1px solid #BAE6FD', color: '#D9F7FF', cursor: 'pointer' }}>
                           <strong style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>{formatDateLabel(date)}</strong>
-                          <span style={{ fontSize: '12px', color: freeSlotsCount === 1 ? '#D9F7FF' : 'rgba(244,251,248,0.72)' }}>{freeSlotsCount === 1 ? 'Última vaga disponível' : `${freeSlotsCount} horário(s) livre(s)`}</span>
+                          <span style={{ fontSize: '12px', color: freeSlotsCount === 1 ? '#D9F7FF' : '#475569' }}>{freeSlotsCount === 1 ? 'Última vaga disponível' : `${freeSlotsCount} horário(s) livre(s)`}</span>
                         </button>
                       );
                     })}
@@ -2092,7 +2196,7 @@ export default function AdminPanel() {
             </div>
           </div>
 
-          <div>
+          <div id="pacientes-admin">
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: '14px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '14px' }}>
                 <strong style={{ display: 'block', fontSize: '18px' }}>Pacientes</strong>
                 {lastConfirmation ? <ActionButton onClick={copyLastConfirmation}>Copiar confirmação</ActionButton> : null}
@@ -2100,25 +2204,36 @@ export default function AdminPanel() {
               <Field label="Buscar paciente" value={patientSearch} onChange={setPatientSearch} placeholder="Nome, CPF, data ou status" />
               <div style={{ height: '14px' }} />
               {filteredAppointments.length === 0 ? (
-                <p style={{ margin: 0, color: 'rgba(244,251,248,0.62)', lineHeight: 1.7 }}>
+                <p style={{ margin: 0, color: '#64748B', lineHeight: 1.7 }}>
                   {appointmentsByDate.length === 0 ? 'Nenhum agendamento cadastrado ainda.' : 'Nenhum paciente encontrado nessa busca.'}
                 </p>
               ) : (
                 <div style={{ display: 'grid', gap: '10px' }}>
                   {filteredAppointments.map((appointment) => (
-                    <button key={appointment.id} type="button" onClick={() => openAppointmentDetails(appointment.id)} style={{ textAlign: 'left', background: appointment.status === 'cancelado' ? 'rgba(231,177,177,0.08)' : 'rgba(9,26,36,0.88)', borderRadius: '8px', padding: '14px', border: appointment.status === 'cancelado' ? '1px solid rgba(231,177,177,0.18)' : '1px solid rgba(255,255,255,0.05)', color: '#FFFFFF', cursor: 'pointer' }}>
+                    <button key={appointment.id} type="button" onClick={() => openAppointmentDetails(appointment.id)} style={{ textAlign: 'left', background: appointment.status === 'cancelado' ? '#FEF2F2' : '#F8FAFC', borderRadius: '8px', padding: '14px', border: appointment.status === 'cancelado' ? '1px solid #FECACA' : '1px solid #E2E8F0', color: '#FFFFFF', cursor: 'pointer' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
                         <div>
                           <strong style={{ display: 'block', fontSize: '16px' }}>{appointment.fullName}</strong>
                           <span style={{ color: '#15ABD1', fontSize: '13px' }}>{formatDateLabel(appointment.date)}{appointment.time ? ` às ${appointment.time}` : ''}</span>
                         </div>
-                        <span style={{ borderRadius: '8px', padding: '7px 10px', background: appointment.status === 'cancelado' ? 'rgba(231,177,177,0.14)' : 'rgba(17,175,186,0.12)', color: appointment.status === 'cancelado' ? '#E7B1B1' : '#BEEFFF', fontSize: '12px' }}>{appointment.status}</span>
+                        <span style={{ borderRadius: '8px', padding: '7px 10px', background: appointment.status === 'cancelado' ? '#FEE2E2' : '#DCFCE7', color: appointment.status === 'cancelado' ? '#E7B1B1' : '#BEEFFF', fontSize: '12px' }}>{appointment.status}</span>
                       </div>
                     </button>
                   ))}
                 </div>
               )}
             </div>
+        </SectionCard>
+
+        <SectionCard id="financeiro-admin" eyebrow="Financeiro" title="Resumo financeiro" description="Área visual preparada para acompanhar valores quando os lançamentos financeiros estiverem disponíveis no painel." style={{ padding: sectionPadding }}>
+          <Row minWidth={isMobile ? 150 : 190}>
+            <StatCard label="Receita do dia" value="-" tone="white" />
+            <StatCard label="Receita do mês" value="-" tone="white" />
+            <StatCard label="A receber" value="-" tone="white" />
+            <StatCard label="Atrasados" value="-" tone="white" />
+            <StatCard label="Despesas" value="-" tone="white" />
+            <StatCard label="Saldo" value="-" tone="white" />
+          </Row>
         </SectionCard>
 
         {isAdmin ? (
@@ -2130,10 +2245,10 @@ export default function AdminPanel() {
               <StatCard label="Administradores" value={adminUsers.length} tone="white" />
             </Row>
 
-            <div style={{ padding: '18px', borderRadius: '20px', background: 'rgba(9,26,36,0.92)', border: '1px solid rgba(255,255,255,0.05)', display: 'grid', gap: '14px' }}>
+            <div style={{ padding: '18px', borderRadius: '20px', background: '#F8FAFC', border: '1px solid #E2E8F0', display: 'grid', gap: '14px' }}>
               <div>
                 <strong style={{ display: 'block', fontSize: '18px', marginBottom: '6px' }}>Criar novo usuário</strong>
-                <p style={{ margin: 0, color: 'rgba(244,251,248,0.62)', lineHeight: 1.7 }}>
+                <p style={{ margin: 0, color: '#64748B', lineHeight: 1.7 }}>
                   Cadastre um acesso novo para administração ou equipe.
                 </p>
               </div>
@@ -2161,7 +2276,7 @@ export default function AdminPanel() {
             <div style={{ display: 'grid', gap: '12px' }}>
               <div>
                 <strong style={{ display: 'block', fontSize: '18px', marginBottom: '6px' }}>Gerenciar acessos</strong>
-                <p style={{ margin: 0, color: 'rgba(244,251,248,0.62)', lineHeight: 1.7 }}>
+                <p style={{ margin: 0, color: '#64748B', lineHeight: 1.7 }}>
                   Aqui você consegue ativar, desativar, trocar o perfil e redefinir a senha de cada pessoa.
                 </p>
               </div>
@@ -2171,11 +2286,11 @@ export default function AdminPanel() {
                 const isSaving = busyKey === `user-${user.id}`;
 
                 return (
-                  <div key={user.id} style={{ background: 'rgba(9,26,36,0.92)', borderRadius: '20px', padding: '18px', border: '1px solid rgba(255,255,255,0.05)', display: 'grid', gap: '14px' }}>
+                  <div key={user.id} style={{ background: '#F8FAFC', borderRadius: '20px', padding: '18px', border: '1px solid #E2E8F0', display: 'grid', gap: '14px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
                       <div>
                         <strong style={{ display: 'block', fontSize: '18px', marginBottom: '6px' }}>{user.displayName}</strong>
-                        <div style={{ color: 'rgba(244,251,248,0.62)', lineHeight: 1.7 }}>
+                        <div style={{ color: '#64748B', lineHeight: 1.7 }}>
                           <div><strong>Usuário:</strong> {user.username}</div>
                           <div><strong>Criado em:</strong> {formatDateTimeLabel(user.createdAt)}</div>
                           {isOwnUser ? <div>Este é o seu acesso atual.</div> : null}
@@ -2238,7 +2353,7 @@ export default function AdminPanel() {
               <StatCard label="A compactar" value={retention.pendingArchiveCount ?? 0} tone="white" />
             </Row>
 
-            <div style={{ padding: '16px 18px', borderRadius: '8px', background: 'rgba(21,171,209,0.08)', border: '1px solid rgba(21,171,209,0.18)', color: 'rgba(244,251,248,0.78)', lineHeight: 1.8 }}>
+            <div style={{ padding: '16px 18px', borderRadius: '8px', background: '#E0F2FE', border: '1px solid #BAE6FD', color: '#475569', lineHeight: 1.8 }}>
               <strong style={{ color: '#D9F7FF' }}>Política ativa:</strong> histórico visível por {retention.archiveAfterDays ?? 30} dias, arquivo compactado mantido por {retention.archiveFileRetentionDays ?? 90} dias e registro clínico preservado por {retention.medicalRecordRetentionYears ?? 20} anos. A rotina automática roda ao iniciar o servidor e uma vez por dia.
             </div>
 
@@ -2270,20 +2385,20 @@ export default function AdminPanel() {
             <div style={{ display: 'grid', gap: '10px' }}>
               <strong style={{ fontSize: '18px' }}>Registros encontrados</strong>
               {historyRecords.length === 0 ? (
-                <p style={{ margin: 0, color: 'rgba(244,251,248,0.62)', lineHeight: 1.7 }}>Nenhum registro encontrado para essa busca.</p>
+                <p style={{ margin: 0, color: '#64748B', lineHeight: 1.7 }}>Nenhum registro encontrado para essa busca.</p>
               ) : (
                 historyRecords.slice(0, 80).map((item) => (
-                  <button key={item.id} type="button" onClick={() => openAppointmentDetails(item.id)} style={{ textAlign: 'left', padding: '14px', borderRadius: '8px', background: item.archivedAt ? 'rgba(21,171,209,0.08)' : 'rgba(9,26,36,0.92)', border: item.archivedAt ? '1px solid rgba(21,171,209,0.18)' : '1px solid rgba(255,255,255,0.05)', color: '#FFFFFF', cursor: 'pointer' }}>
+                  <button key={item.id} type="button" onClick={() => openAppointmentDetails(item.id)} style={{ textAlign: 'left', padding: '14px', borderRadius: '8px', background: item.archivedAt ? '#E0F2FE' : '#F8FAFC', border: item.archivedAt ? '1px solid #BAE6FD' : '1px solid #E2E8F0', color: '#FFFFFF', cursor: 'pointer' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
                       <div>
                         <strong style={{ display: 'block', marginBottom: '4px' }}>{item.fullName}</strong>
                         <span style={{ color: '#15ABD1', fontSize: '13px' }}>{formatDateLabel(item.date)}{item.time ? ` às ${item.time}` : ''}</span>
                       </div>
-                      <span style={{ borderRadius: '8px', padding: '7px 10px', background: item.archivedAt ? 'rgba(21,171,209,0.14)' : 'rgba(17,175,186,0.12)', color: item.archivedAt ? '#D9F7FF' : '#BEEFFF', fontSize: '12px' }}>
+                      <span style={{ borderRadius: '8px', padding: '7px 10px', background: item.archivedAt ? '#E0F2FE' : '#DCFCE7', color: item.archivedAt ? '#D9F7FF' : '#BEEFFF', fontSize: '12px' }}>
                         {item.archivedAt ? 'Arquivado' : 'Recente'}
                       </span>
                     </div>
-                    <div style={{ marginTop: '8px', color: 'rgba(244,251,248,0.64)', fontSize: '13px', lineHeight: 1.6 }}>
+                    <div style={{ marginTop: '8px', color: '#64748B', fontSize: '13px', lineHeight: 1.6 }}>
                       CPF {item.cpf} - {item.procedureName || 'Procedimento a definir'} - status {item.status}
                     </div>
                   </button>
@@ -2295,14 +2410,14 @@ export default function AdminPanel() {
               <div style={{ display: 'grid', gap: '10px' }}>
                 <strong style={{ fontSize: '18px' }}>Arquivos compactados</strong>
                 {archiveFiles.length === 0 ? (
-                  <p style={{ margin: 0, color: 'rgba(244,251,248,0.62)', lineHeight: 1.7 }}>Ainda não existe arquivo compactado. A rotina cria o primeiro quando houver registros com mais de 30 dias.</p>
+                  <p style={{ margin: 0, color: '#64748B', lineHeight: 1.7 }}>Ainda não existe arquivo compactado. A rotina cria o primeiro quando houver registros com mais de 30 dias.</p>
                 ) : (
                   archiveFiles.map((file) => (
-                    <div key={file.id} style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', alignItems: 'center', padding: '14px', borderRadius: '8px', background: 'rgba(9,26,36,0.92)', border: '1px solid rgba(255,255,255,0.05)' }}>
-                      <div style={{ color: 'rgba(244,251,248,0.76)', lineHeight: 1.7 }}>
+                    <div key={file.id} style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', alignItems: 'center', padding: '14px', borderRadius: '8px', background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
+                      <div style={{ color: '#475569', lineHeight: 1.7 }}>
                         <strong style={{ display: 'block', color: '#FFFFFF' }}>{file.fileName}</strong>
                         <span>{file.recordsCount} registro(s) - {formatFileSize(file.fileSizeBytes)} - {file.periodStart || '-'} a {file.periodEnd || '-'}</span>
-                        <div style={{ fontSize: '12px', color: 'rgba(244,251,248,0.54)' }}>Criado em {formatDateTimeLabel(file.createdAt)}</div>
+                        <div style={{ fontSize: '12px', color: '#94A3B8' }}>Criado em {formatDateTimeLabel(file.createdAt)}</div>
                       </div>
                       <ActionButton onClick={() => handleDownloadArchiveFile(file.id)} disabled={busyKey === `archive-${file.id}`}>
                         {busyKey === `archive-${file.id}` ? 'Baixando...' : 'Baixar'}
@@ -2327,11 +2442,19 @@ export default function AdminPanel() {
             </SectionCard>
 
             <SectionCard eyebrow="Modo equipe" title="Permissões da secretaria" description="Neste perfil, o painel fica focado no operacional: ver datas liberadas, cadastrar pacientes, atualizar status e manter os dados organizados.">
-              <p style={{ margin: 0, color: 'rgba(244,251,248,0.7)', lineHeight: 1.8 }}>A liberação de agenda fica reservada para o acesso de administração.</p>
+              <p style={{ margin: 0, color: '#64748B', lineHeight: 1.8 }}>A liberação de agenda fica reservada para o acesso de administração.</p>
             </SectionCard>
           </>
         ) : null}
         </div>
+        </main>
+        {isAdmin ? (
+          <nav className="admin-mobile-nav">
+            {adminSectionLinks.slice(0, 5).map((item) => (
+              <a key={`mobile-${item.label}`} href={item.href}>{item.label}</a>
+            ))}
+          </nav>
+        ) : null}
       </div>
 
       {selectedPatient ? (
@@ -2359,7 +2482,7 @@ export default function AdminPanel() {
               maxHeight: '92vh',
               overflowY: 'auto',
               background: 'linear-gradient(180deg, rgba(8,24,34,0.98) 0%, rgba(6,14,22,0.98) 100%)',
-              border: '1px solid rgba(21,171,209,0.24)',
+              border: '1px solid #BAE6FD',
               borderRadius: '28px',
               padding: isMobile ? '20px' : '28px',
               boxShadow: '0 28px 70px rgba(0,0,0,0.34)',
@@ -2376,7 +2499,7 @@ export default function AdminPanel() {
                 <h2 style={{ margin: '0 0 8px', fontFamily: "'Cormorant Garamond', serif", fontWeight: 400, fontSize: isMobile ? '32px' : '40px' }}>
                   {selectedPatient.fullName}
                 </h2>
-                <p style={{ margin: 0, color: 'rgba(244,251,248,0.68)', lineHeight: 1.7 }}>
+                <p style={{ margin: 0, color: '#64748B', lineHeight: 1.7 }}>
                   {formatDateLabel(selectedPatient.date)}{selectedPatient.time ? ` às ${selectedPatient.time}` : ''}
                 </p>
               </div>
@@ -2387,22 +2510,22 @@ export default function AdminPanel() {
             </div>
 
             <div style={{ display: 'grid', gap: '10px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center', flexWrap: 'wrap', padding: '14px', borderRadius: '8px', background: selectedPatient.status === 'cancelado' ? 'rgba(231,177,177,0.08)' : 'rgba(17,175,186,0.08)', border: selectedPatient.status === 'cancelado' ? '1px solid rgba(231,177,177,0.18)' : '1px solid rgba(17,175,186,0.18)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center', flexWrap: 'wrap', padding: '14px', borderRadius: '8px', background: selectedPatient.status === 'cancelado' ? '#FEF2F2' : '#DCFCE7', border: selectedPatient.status === 'cancelado' ? '1px solid #FECACA' : '1px solid #BBF7D0' }}>
                 <div>
                   <strong style={{ display: 'block', marginBottom: '4px' }}>Agendamento atual</strong>
-                  <span style={{ color: 'rgba(244,251,248,0.72)' }}>{formatDateLabel(selectedPatient.date)}{selectedPatient.time ? ` às ${selectedPatient.time}` : ''}</span>
+                  <span style={{ color: '#475569' }}>{formatDateLabel(selectedPatient.date)}{selectedPatient.time ? ` às ${selectedPatient.time}` : ''}</span>
                 </div>
-                <span style={{ borderRadius: '8px', padding: '8px 10px', background: selectedPatient.status === 'cancelado' ? 'rgba(231,177,177,0.14)' : 'rgba(17,175,186,0.12)', color: selectedPatient.status === 'cancelado' ? '#E7B1B1' : '#BEEFFF', fontSize: '12px' }}>{selectedPatient.status}</span>
+                <span style={{ borderRadius: '8px', padding: '8px 10px', background: selectedPatient.status === 'cancelado' ? '#FEE2E2' : '#DCFCE7', color: selectedPatient.status === 'cancelado' ? '#E7B1B1' : '#BEEFFF', fontSize: '12px' }}>{selectedPatient.status}</span>
               </div>
               <Row minWidth={isMobile ? 180 : 260}>
-                <div style={{ display: 'grid', gap: '8px', padding: '14px', borderRadius: '8px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', color: 'rgba(244,251,248,0.78)', lineHeight: 1.7 }}>
+                <div style={{ display: 'grid', gap: '8px', padding: '14px', borderRadius: '8px', background: 'rgba(255,255,255,0.04)', border: '1px solid #E2E8F0', color: '#475569', lineHeight: 1.7 }}>
                   <strong style={{ color: '#FFFFFF' }}>Dados do paciente</strong>
                   <div><strong>Nome:</strong> {selectedPatient.fullName}</div>
                   <div><strong>CPF:</strong> {selectedPatient.cpf}</div>
                   <div><strong>Endereço:</strong> {selectedPatient.address}</div>
                   {selectedPatient.contactPhone ? <div><strong>Telefone:</strong> {selectedPatient.contactPhone}</div> : null}
                 </div>
-                <div style={{ display: 'grid', gap: '8px', padding: '14px', borderRadius: '8px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', color: 'rgba(244,251,248,0.78)', lineHeight: 1.7 }}>
+                <div style={{ display: 'grid', gap: '8px', padding: '14px', borderRadius: '8px', background: 'rgba(255,255,255,0.04)', border: '1px solid #E2E8F0', color: '#475569', lineHeight: 1.7 }}>
                   <strong style={{ color: '#FFFFFF' }}>Dados do agendamento</strong>
                   <div><strong>Data:</strong> {formatDateLabel(selectedPatient.date)}</div>
                   <div><strong>Horário:</strong> {selectedPatient.time || 'Sem horário'}</div>
@@ -2410,17 +2533,17 @@ export default function AdminPanel() {
                   <div><strong>Origem:</strong> {selectedPatient.source === 'whatsapp' ? 'WhatsApp' : 'Painel'}</div>
                 </div>
               </Row>
-              <div style={{ display: 'grid', gap: '8px', padding: '14px', borderRadius: '8px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', color: 'rgba(244,251,248,0.78)', lineHeight: 1.7 }}>
+              <div style={{ display: 'grid', gap: '8px', padding: '14px', borderRadius: '8px', background: 'rgba(255,255,255,0.04)', border: '1px solid #E2E8F0', color: '#475569', lineHeight: 1.7 }}>
                 <strong style={{ color: '#FFFFFF' }}>Observações internas</strong>
                 <div>{selectedPatient.notes || 'Sem observações registradas.'}</div>
               </div>
             </div>
 
             {appointmentEditOpen ? (
-              <div style={{ display: 'grid', gap: '12px', padding: '14px', borderRadius: '8px', background: 'rgba(21,171,209,0.08)', border: '1px solid rgba(21,171,209,0.18)' }}>
+              <div style={{ display: 'grid', gap: '12px', padding: '14px', borderRadius: '8px', background: '#E0F2FE', border: '1px solid #BAE6FD' }}>
                 <div>
                   <strong style={{ display: 'block', fontSize: '16px', marginBottom: '4px' }}>Remarcar paciente</strong>
-                  <span style={{ color: 'rgba(244,251,248,0.66)', lineHeight: 1.7, fontSize: '13px' }}>Escolha uma data e um horário livre. O sistema já bloqueia horários ocupados.</span>
+                  <span style={{ color: '#64748B', lineHeight: 1.7, fontSize: '13px' }}>Escolha uma data e um horário livre. O sistema já bloqueia horários ocupados.</span>
                 </div>
                 <Row minWidth={isMobile ? 180 : 220}>
                   <SelectField
@@ -2442,11 +2565,11 @@ export default function AdminPanel() {
                   />
                 </Row>
                 {appointmentEditForm.date && appointmentEditForm.time ? (
-                  <div style={{ padding: '12px', borderRadius: '8px', background: 'rgba(0,0,0,0.20)', border: '1px solid rgba(255,255,255,0.06)', color: '#D9F7FF', lineHeight: 1.7 }}>
+                  <div style={{ padding: '12px', borderRadius: '8px', background: 'rgba(0,0,0,0.20)', border: '1px solid #E2E8F0', color: '#D9F7FF', lineHeight: 1.7 }}>
                     Vai mudar para <strong>{formatDateLabel(appointmentEditForm.date)} às {appointmentEditForm.time}</strong>.
                   </div>
                 ) : null}
-                <p style={{ margin: 0, color: 'rgba(244,251,248,0.66)', lineHeight: 1.7, fontSize: '13px' }}>
+                <p style={{ margin: 0, color: '#64748B', lineHeight: 1.7, fontSize: '13px' }}>
                   O horário antigo volta a ficar livre assim que a alteração for salva.
                 </p>
                 <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
@@ -2459,7 +2582,7 @@ export default function AdminPanel() {
             ) : null}
 
             {!appointmentEditOpen ? (
-              <div style={{ padding: '14px', borderRadius: '8px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', color: 'rgba(244,251,248,0.68)', lineHeight: 1.7 }}>
+              <div style={{ padding: '14px', borderRadius: '8px', background: 'rgba(255,255,255,0.04)', border: '1px solid #E2E8F0', color: '#64748B', lineHeight: 1.7 }}>
                 Para mudar o dia ou horário, use <strong style={{ color: '#FFFFFF' }}>Remarcar paciente</strong>. Para liberar o horário sem escolher outro, use <strong style={{ color: '#FFFFFF' }}>Cancelar agendamento</strong>.
               </div>
             ) : null}
@@ -2499,7 +2622,7 @@ export default function AdminPanel() {
               maxHeight: '92vh',
               overflowY: 'auto',
               background: 'linear-gradient(180deg, rgba(8,24,34,0.98) 0%, rgba(6,14,22,0.98) 100%)',
-              border: '1px solid rgba(21,171,209,0.24)',
+              border: '1px solid #BAE6FD',
               borderRadius: '28px',
               padding: isMobile ? '20px' : '28px',
               boxShadow: '0 28px 70px rgba(0,0,0,0.34)',
@@ -2516,7 +2639,7 @@ export default function AdminPanel() {
                 <h2 style={{ margin: '0 0 8px', fontFamily: "'Cormorant Garamond', serif", fontWeight: 400, fontSize: isMobile ? '34px' : '42px' }}>
                   {appointmentForm.date ? formatDateLabel(appointmentForm.date) : 'Escolha uma data'}
                 </h2>
-                <p style={{ margin: 0, color: 'rgba(244,251,248,0.68)', lineHeight: 1.7 }}>
+                <p style={{ margin: 0, color: '#64748B', lineHeight: 1.7 }}>
                   Selecione um horário livre e complete os dados do paciente.
                 </p>
               </div>
@@ -2526,7 +2649,7 @@ export default function AdminPanel() {
             <div style={{ display: 'grid', gap: '12px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
                 <strong style={{ fontSize: '16px' }}>Horários disponíveis</strong>
-                {appointmentForm.time ? <span style={{ borderRadius: '8px', padding: '8px 12px', background: 'rgba(17,175,186,0.12)', color: '#BEEFFF', fontSize: '13px' }}>Selecionado: {appointmentForm.time}</span> : null}
+                {appointmentForm.time ? <span style={{ borderRadius: '8px', padding: '8px 12px', background: '#DCFCE7', color: '#BEEFFF', fontSize: '13px' }}>Selecionado: {appointmentForm.time}</span> : null}
               </div>
               {appointmentTimeOptions.length === 0 ? (
                 <p style={{ margin: 0, color: '#E7B1B1', lineHeight: 1.7 }}>Não há horário livre nessa data.</p>
@@ -2542,8 +2665,8 @@ export default function AdminPanel() {
                         style={{
                           minHeight: '56px',
                           borderRadius: '8px',
-                          border: selected ? '1px solid #15ABD1' : '1px solid rgba(255,255,255,0.10)',
-                          background: selected ? 'rgba(21,171,209,0.18)' : 'rgba(255,255,255,0.05)',
+                          border: selected ? '1px solid #15ABD1' : '1px solid #CBD5E1',
+                          background: selected ? '#BAE6FD' : '#E2E8F0',
                           color: selected ? '#D9F7FF' : '#FFFFFF',
                           cursor: 'pointer',
                           fontWeight: 600,
@@ -2604,7 +2727,7 @@ export default function AdminPanel() {
               width: '100%',
               maxWidth: '560px',
               background: 'linear-gradient(180deg, rgba(8,24,34,0.98) 0%, rgba(6,14,22,0.98) 100%)',
-              border: systemCheckReport.ok ? '1px solid rgba(17,175,186,0.28)' : '1px solid rgba(231,177,177,0.28)',
+              border: systemCheckReport.ok ? '1px solid rgba(17,175,186,0.28)' : '1px solid #FECACA',
               borderRadius: '28px',
               padding: isMobile ? '22px' : '28px',
               boxShadow: '0 28px 70px rgba(0,0,0,0.34)',
@@ -2620,14 +2743,14 @@ export default function AdminPanel() {
               <h2 style={{ margin: '0 0 10px', fontFamily: "'Cormorant Garamond', serif", fontWeight: 400, fontSize: isMobile ? '34px' : '42px' }}>
                 {systemCheckReport.ok ? 'Tudo funcionando perfeitamente' : 'Encontramos um problema'}
               </h2>
-              <p style={{ margin: 0, color: 'rgba(244,251,248,0.72)', lineHeight: 1.8 }}>
+              <p style={{ margin: 0, color: '#475569', lineHeight: 1.8 }}>
                 {systemCheckReport.ok
                   ? 'As verificações principais passaram. Se ainda existir algum comportamento estranho, envie esse resultado para o suporte com o horário do teste.'
                   : 'Uma ou mais verificações falharam. Entre em contato com o suporte e envie esse resultado para acelerar o atendimento.'}
               </p>
             </div>
 
-            <div style={{ padding: '16px 18px', borderRadius: '18px', background: systemCheckReport.ok ? 'rgba(17,175,186,0.10)' : 'rgba(231,177,177,0.10)', border: systemCheckReport.ok ? '1px solid rgba(17,175,186,0.22)' : '1px solid rgba(231,177,177,0.22)' }}>
+            <div style={{ padding: '16px 18px', borderRadius: '18px', background: systemCheckReport.ok ? '#DCFCE7' : '#FEF2F2', border: systemCheckReport.ok ? '1px solid #BBF7D0' : '1px solid rgba(231,177,177,0.22)' }}>
               <div style={{ color: 'rgba(244,251,248,0.8)', lineHeight: 1.8 }}>
                 <div><strong>Resumo:</strong> {systemCheckReport.summary}</div>
                 <div><strong>Executado em:</strong> {systemCheckReport.finishedAt ? new Date(systemCheckReport.finishedAt).toLocaleString('pt-BR') : '-'}</div>
@@ -2638,7 +2761,7 @@ export default function AdminPanel() {
             {!systemCheckReport.ok ? (
               <div style={{ display: 'grid', gap: '10px' }}>
                 {systemCheckReport.checks.filter((item) => !item.ok).map((item) => (
-                  <div key={item.key} style={{ padding: '14px 16px', borderRadius: '18px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(231,177,177,0.18)' }}>
+                  <div key={item.key} style={{ padding: '14px 16px', borderRadius: '18px', background: 'rgba(255,255,255,0.04)', border: '1px solid #FECACA' }}>
                     <strong style={{ display: 'block', marginBottom: '6px', color: '#F2C6C6' }}>{item.label}</strong>
                     <div style={{ color: 'rgba(244,251,248,0.74)', lineHeight: 1.7 }}>{item.error}</div>
                   </div>
@@ -2658,11 +2781,3 @@ export default function AdminPanel() {
     </>
   );
 }
-
-
-
-
-
-
-
-
