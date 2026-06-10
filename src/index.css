@@ -7,8 +7,8 @@
 :root {
   --cream: #FFFFFF;
   --cream-dark: #EAFBFF;
-  --gold: #15ABD1;
-  --gold-light: #11AFBA;
+  --gold: #2563EB;
+  --gold-light: #1D4ED8;
   --gold-pale: #C9F6FF;
   --charcoal: #07111A;
   --charcoal-mid: #113040;
@@ -16,8 +16,8 @@
   --white: #FFFFFF;
   --text-muted: #7A7A7A;
   --border: rgba(21, 171, 209, 0.25);
-  --font-display: 'Cormorant Garamond', Georgia, serif;
-  --font-body: 'Outfit', sans-serif;
+  --font-display: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-body: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
   --transition-fast: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -29,8 +29,8 @@ html {
 
 body {
   font-family: var(--font-body);
-  background-color: var(--charcoal);
-  color: var(--cream);
+  background-color: #F8FAFC;
+  color: #0F172A;
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -41,7 +41,7 @@ body {
   background: #F8FAFC;
   color: #0F172A;
   display: grid;
-  grid-template-columns: 280px minmax(0, 1fr);
+  grid-template-columns: 272px minmax(0, 1fr);
 }
 
 .admin-main {
@@ -53,26 +53,28 @@ body {
   position: sticky;
   top: 0;
   height: 100vh;
-  padding: 24px 18px;
+  padding: 24px 16px;
   background: #FFFFFF;
   border-right: 1px solid #E2E8F0;
   display: flex;
   flex-direction: column;
-  gap: 28px;
+  gap: 24px;
+  box-shadow: 12px 0 34px rgba(15, 23, 42, 0.03);
 }
 
 .admin-brand {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px;
+  padding: 8px 10px 18px;
+  border-bottom: 1px solid #F1F5F9;
 }
 
 .admin-brand > span {
   width: 44px;
   height: 44px;
   border-radius: 12px;
-  background: #0EA5E9;
+  background: linear-gradient(135deg, #2563EB, #1D4ED8);
   color: #FFFFFF;
   display: grid;
   place-items: center;
@@ -94,24 +96,28 @@ body {
 
 .admin-sidebar-nav {
   display: grid;
-  gap: 6px;
+  gap: 4px;
 }
 
 .admin-sidebar-nav button {
   color: #334155;
   padding: 12px 14px;
   border-radius: 12px;
-  font-weight: 700;
+  font-weight: 650;
   text-align: left;
-  transition: background 180ms ease, color 180ms ease;
+  transition: background 180ms ease, color 180ms ease, transform 180ms ease;
 }
 
 .admin-sidebar-nav button:hover,
 .admin-sidebar-nav button:focus,
 .admin-sidebar-nav button.active {
-  background: #E0F2FE;
-  color: #0284C7;
+  background: #EFF6FF;
+  color: #1D4ED8;
   outline: none;
+}
+
+.admin-sidebar-nav button:hover {
+  transform: translateX(2px);
 }
 
 .admin-topbar {
@@ -121,12 +127,13 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 18px;
+  gap: 16px;
   flex-wrap: wrap;
   margin-bottom: 24px;
-  padding: 18px 0;
-  background: rgba(248, 250, 252, 0.92);
+  padding: 16px 0 22px;
+  background: rgba(248, 250, 252, 0.94);
   backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(226, 232, 240, 0.72);
 }
 
 .admin-mobile-nav {
@@ -135,11 +142,11 @@ body {
 
 @media (max-width: 1100px) {
   .admin-app-shell {
-    grid-template-columns: 84px minmax(0, 1fr);
+    grid-template-columns: 92px minmax(0, 1fr);
   }
 
   .admin-sidebar {
-    padding: 18px 10px;
+    padding: 16px 10px;
   }
 
   .admin-brand {
@@ -155,6 +162,7 @@ body {
     text-align: center;
     padding: 12px 8px;
     font-size: 11px;
+    line-height: 1.15;
   }
 }
 
@@ -171,6 +179,7 @@ body {
   .admin-topbar {
     position: static;
     padding-top: 10px;
+    border-bottom: none;
   }
 
   .admin-mobile-nav {
@@ -183,16 +192,16 @@ body {
     grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 4px;
     padding: 8px;
-    border-radius: 18px;
+    border-radius: 16px;
     background: rgba(255, 255, 255, 0.96);
     border: 1px solid #E2E8F0;
-    box-shadow: 0 18px 45px rgba(15, 23, 42, 0.18);
+    box-shadow: 0 16px 45px rgba(15, 23, 42, 0.18);
   }
 
   .admin-mobile-nav button {
     color: #334155;
     font-size: 10px;
-    font-weight: 800;
+    font-weight: 750;
     text-align: center;
     padding: 9px 4px;
     border-radius: 12px;
@@ -201,8 +210,8 @@ body {
   .admin-mobile-nav button:focus,
   .admin-mobile-nav button:hover,
   .admin-mobile-nav button.active {
-    background: #E0F2FE;
-    color: #0284C7;
+    background: #EFF6FF;
+    color: #1D4ED8;
     outline: none;
   }
 }
@@ -251,5 +260,3 @@ button {
 .page-wrapper {
   animation: fadeIn 0.8s ease forwards;
 }
-
-
