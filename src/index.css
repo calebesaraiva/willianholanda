@@ -97,16 +97,18 @@ body {
   gap: 6px;
 }
 
-.admin-sidebar-nav a {
+.admin-sidebar-nav button {
   color: #334155;
   padding: 12px 14px;
   border-radius: 12px;
   font-weight: 700;
+  text-align: left;
   transition: background 180ms ease, color 180ms ease;
 }
 
-.admin-sidebar-nav a:hover,
-.admin-sidebar-nav a:focus {
+.admin-sidebar-nav button:hover,
+.admin-sidebar-nav button:focus,
+.admin-sidebar-nav button.active {
   background: #E0F2FE;
   color: #0284C7;
   outline: none;
@@ -145,11 +147,11 @@ body {
   }
 
   .admin-brand div,
-  .admin-sidebar-nav a:nth-child(n+6) {
+  .admin-sidebar-nav button:nth-child(n+6) {
     display: none;
   }
 
-  .admin-sidebar-nav a {
+  .admin-sidebar-nav button {
     text-align: center;
     padding: 12px 8px;
     font-size: 11px;
@@ -187,7 +189,7 @@ body {
     box-shadow: 0 18px 45px rgba(15, 23, 42, 0.18);
   }
 
-  .admin-mobile-nav a {
+  .admin-mobile-nav button {
     color: #334155;
     font-size: 10px;
     font-weight: 800;
@@ -196,8 +198,9 @@ body {
     border-radius: 12px;
   }
 
-  .admin-mobile-nav a:focus,
-  .admin-mobile-nav a:hover {
+  .admin-mobile-nav button:focus,
+  .admin-mobile-nav button:hover,
+  .admin-mobile-nav button.active {
     background: #E0F2FE;
     color: #0284C7;
     outline: none;
