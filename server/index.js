@@ -1750,47 +1750,32 @@ function buildAvailableDatesMessage() {
   const freeTimeSlotsByDate = getFreeTimeSlotsByDate(schedule);
   const dates = getDatesWithFreeSlots(schedule).slice(0, 12);
   if (dates.length === 0) {
-    return 'No momento não existem datas liberadas. Envie "AJUDA" para ver os comandos disponíveis.';
+    return '📅 No momento, não há datas liberadas.\n\nDigite *MENU* para visualizar as opções disponíveis.';
   }
 
   return [
-    'Datas liberadas:',
+    '📅 *Datas liberadas*',
+    '',
     ...dates.map((date, index) => `${index + 1}. ${date} - ${freeTimeSlotsByDate[date].join(', ')}`),
     '',
-    'Para agendar, envie AGENDAR e eu vou te guiando passo a passo.',
+    'Para agendar, envie *AGENDAR* e eu vou conduzir você passo a passo.',
     '',
-    'Ou, se preferir, envie no formato completo:',
-    'AGENDAR',
-    'NOME: Nome Completo',
-    'CPF: 12345678901',
-    'ENDERECO: Rua Exemplo, 10',
-    `DATA: ${dates[0]}`,
-    `HORA: ${freeTimeSlotsByDate[dates[0]][0]}`,
-    'PROCEDIMENTO: Consulta',
-    'OBS: Opcional',
+    'Se preferir, envie as informações completas em linhas separadas.',
   ].join('\n');
 }
 
 function buildWhatsAppHelpMessage() {
   return [
-    'Comandos disponíveis:',
-    '1. DATAS',
-    '2. AGENDAR para fluxo guiado',
-    '3. AGENDAR + campos em linhas separadas',
-    '4. STATUS + CPF e DATA',
-    '5. CANCELAR + CPF e DATA',
+    '📋 *Comandos disponíveis*',
     '',
-    'Exemplo guiado:',
-    'AGENDAR',
+    '1️⃣ *DATAS*',
+    '2️⃣ *AGENDAR* para fluxo guiado',
+    '3️⃣ *STATUS* + CPF e DATA',
+    '4️⃣ *CANCELAR* + CPF e DATA',
     '',
-    'Exemplo completo:',
-    'AGENDAR',
-    'NOME: Maria da Silva',
-    'CPF: 12345678901',
-    'ENDERECO: Rua Exemplo, 10',
-    'DATA: 2026-04-12',
-    'HORA: 09:00',
-    'PROCEDIMENTO: Consulta',
+    'Exemplo:',
+    '',
+    '*AGENDAR*',
   ].join('\n');
 }
 
@@ -1983,134 +1968,168 @@ function buildProfessionalDatesMessage() {
   const freeTimeSlotsByDate = getFreeTimeSlotsByDate(schedule);
   const dates = getDatesWithFreeSlots(schedule).slice(0, 12);
   if (dates.length === 0) {
-    return 'No momento nao existem horarios liberados para agendamento. Se preferir, envie ATENDENTE para falar com a equipe.';
+    return [
+      '📅 *Agenda WR Gastro*',
+      '',
+      'No momento, não há horários liberados para agendamento pelo WhatsApp.',
+      '',
+      'Se preferir, digite *ATENDENTE* para falar com nossa equipe.',
+    ].join('\n');
   }
 
   return [
-    'Estas sao as proximas datas com horarios disponiveis:',
+    '📅 *Datas disponíveis*',
+    '',
+    'Estas são as próximas datas com horários liberados:',
+    '',
     ...dates.map((date, index) => `${index + 1}. ${date} - ${freeTimeSlotsByDate[date].join(', ')}`),
     '',
-    'Deseja iniciar um agendamento?',
+    '👇 O que deseja fazer agora?',
     '',
-    '1. Agendar consulta',
-    '2. Agendar exame',
-    '3. Remarcar',
-    '4. Voltar ao menu',
+    '1️⃣ Agendar consulta',
+    '2️⃣ Agendar exame',
+    '3️⃣ Remarcar',
+    '4️⃣ Voltar ao menu',
   ].join('\n');
 }
 
 function buildProfessionalHelpMessage() {
   return [
-    'WR Gastro',
+    '👨‍⚕️ *WR Gastro*',
     '',
-    'Ola, seja bem-vindo a WR Gastro.',
+    'Olá! Seja muito bem-vindo(a). 😊',
     '',
-    'Como podemos ajudar?',
+    'Será um prazer ajudar você.',
     '',
-    '1. Marcar consulta',
+    '📋 *Como podemos ajudar hoje?*',
     '',
-    '2. Agendar exames',
+    '1️⃣ Marcar consulta',
     '',
-    '3. Ver valores de consultas e exames',
+    '2️⃣ Agendar exames',
     '',
-    '4. Ver orcamentos de cirurgias',
+    '3️⃣ Ver valores de consultas e exames',
     '',
-    '5. Falar com atendente',
+    '4️⃣ Solicitar orçamento cirúrgico',
+    '',
+    '5️⃣ Falar com atendente',
+    '',
+    '✍️ Digite apenas o número da opção desejada.',
   ].join('\n');
 }
 
 function buildPricingInfoMessage() {
   return [
-    'Valores atualmente praticados:',
+    '💰 *Valores atualmente praticados*',
     '',
-    'Consulta Gastroenterologica',
+    '👨‍⚕️ Consulta Gastroenterológica',
+    '',
     'R$ 450,00',
     '',
-    'Endoscopia',
+    '🔬 Endoscopia',
+    '',
     'R$ 550,00',
     '',
-    'Colonoscopia',
+    '🩺 Colonoscopia',
+    '',
     'R$ 1.000,00',
     '',
-    'Formas de pagamento:',
+    '━━━━━━━━━━━━━━━',
     '',
-    '* Pix',
-    '* Especie',
-    '* Cartao de Debito',
-    '* Cartao de Credito',
+    '💳 *Formas de pagamento*',
     '',
-    'Convenios aceitos:',
+    '• Pix',
+    '• Dinheiro',
+    '• Cartão de Débito',
+    '• Cartão de Crédito',
     '',
-    '* Aura Saude',
-    '* Geap',
-    '* Fusex',
-    '* Humana (somente exames)',
+    '━━━━━━━━━━━━━━━',
     '',
-    'Deseja:',
+    '📄 *Convênios aceitos*',
     '',
-    '1. Agendar consulta',
-    '2. Agendar exame',
-    '3. Falar com atendente',
+    '• Aura Saúde',
+    '• Geap',
+    '• Fusex',
+    '• Humana (somente exames)',
+    '',
+    '━━━━━━━━━━━━━━━',
+    '',
+    '👇 O que deseja fazer agora?',
+    '',
+    '1️⃣ Agendar consulta',
+    '',
+    '2️⃣ Agendar exame',
+    '',
+    '3️⃣ Falar com atendente',
   ].join('\n');
 }
 
 function buildSurgeryInfoMessage() {
   return [
-    'A WR Gastro realiza diversos procedimentos cirurgicos e gastroenterologicos.',
+    '🩺 *Orçamento Cirúrgico*',
     '',
-    'Os valores e orientacoes variam conforme cada caso.',
-    'Para receber um orcamento personalizado, nossa equipe realizara uma avaliacao inicial.',
+    'A WR Gastro realiza diversos procedimentos cirúrgicos e gastroenterológicos.',
     '',
-    'Deseja:',
+    'Como cada caso possui características específicas, os valores e orientações podem variar.',
     '',
-    '1. Solicitar orcamento',
-    '2. Falar com atendente',
+    '📋 Para receber um orçamento personalizado, vamos realizar uma avaliação inicial.',
+    '',
+    'Escolha uma opção:',
+    '',
+    '1️⃣ Solicitar orçamento',
+    '',
+    '2️⃣ Falar com atendente',
   ].join('\n');
 }
 
 function buildClinicInfoMessage() {
   return [
-    'WR Gastro',
+    '📍 *WR Gastro*',
     '',
-    'Endereco:',
+    '*Endereço:*',
     'Rua Urbano Santos, 1160',
     'Jucara',
     'Imperatriz - MA',
     '',
-    'Horario de atendimento:',
-    'Segunda a Sexta: 07:00 as 18:00',
-    'Sabado: 07:00 as 12:00',
+    '*Horário de atendimento:*',
+    'Segunda a Sexta: 07:00 às 18:00',
+    'Sábado: 07:00 às 12:00',
     'Domingo: Fechado',
     '',
-    'Para falar com a equipe, responda 5.',
+    'Para falar com nossa equipe, responda *5*.',
   ].join('\n');
 }
 
 function buildConsultPreScheduleStartMessage() {
   return [
-    'Agendar consulta',
+    '🏥 *Agendamento de Consulta*',
     '',
-    'Vou coletar seus dados para pre-agendamento.',
-    'A consulta nao sera confirmada automaticamente. A equipe da WR Gastro ira validar a disponibilidade e retornar por aqui.',
+    'Vou coletar algumas informações para realizar seu pré-agendamento.',
     '',
-    'Para comecar, envie o nome completo do paciente.',
+    'ℹ️ A consulta não será confirmada automaticamente.',
+    '',
+    'Nossa equipe verificará a disponibilidade e retornará por aqui para confirmação.',
+    '',
+    '👤 Informe o nome completo do paciente.',
   ].join('\n');
 }
 
 function buildExamPreScheduleStartMessage() {
   return [
-    'Agendar exames',
+    '🔬 *Agendamento de Exames*',
     '',
-    'Vou coletar seus dados para pre-agendamento do exame.',
-    'O exame nao sera confirmado automaticamente. A equipe da WR Gastro ira validar a disponibilidade e retornar por aqui.',
+    'Vou coletar algumas informações para realizar seu pré-agendamento.',
     '',
-    'Para comecar, envie o nome completo do paciente.',
+    'ℹ️ O exame não será confirmado automaticamente.',
+    '',
+    'Nossa equipe verificará a disponibilidade e retornará para confirmação.',
+    '',
+    '👤 Informe o nome completo do paciente.',
   ].join('\n');
 }
 
 function buildSurgeryQuoteStartMessage() {
   return [
-    'Para comecar, envie o nome completo do paciente.',
+    '👤 Informe o nome completo do paciente.',
   ].join('\n');
 }
 
@@ -2118,16 +2137,21 @@ function buildProfessionalGuidedStartMessage() {
   const schedule = getSchedule();
   const dates = getDatesWithFreeSlots(schedule);
   if (!dates.length) {
-    return 'No momento nao existem horarios liberados. Se preferir, envie ATENDENTE para falar com a equipe.';
+    return [
+      '📅 No momento, não há horários liberados para agendamento.',
+      '',
+      'Se preferir, digite *ATENDENTE* para falar com nossa equipe.',
+    ].join('\n');
   }
 
   return [
-    'WR Gastro',
+    '🏥 *Agendamento WR Gastro*',
     '',
     'Vou conduzir seu agendamento em poucos passos.',
-    'Para comecar, me envie o nome completo do paciente.',
     '',
-    'Datas com vaga no momento:',
+    '👤 Para começar, envie o nome completo do paciente.',
+    '',
+    '📅 *Datas com vaga no momento:*',
     buildFreeDatesListText(schedule),
   ].join('\n');
 }
@@ -2135,28 +2159,31 @@ function buildProfessionalGuidedStartMessage() {
 function buildProfessionalGuidedSummary(draft) {
   const isExam = draft.flowType === 'exam_appointment';
   return [
-    isExam ? 'Confira os dados do exame:' : 'Confira os dados do atendimento:',
+    isExam ? '🔬 *Confira os dados do exame:*' : '🏥 *Confira os dados do atendimento:*',
     '',
-    `Paciente: ${draft.fullName}`,
-    `CPF: ${formatCpf(draft.cpf)}`,
-    `Endereco: ${draft.address}`,
-    `Data: ${draft.date}`,
-    `Horario: ${draft.time}`,
-    `${isExam ? 'Exame' : 'Procedimento'}: ${draft.procedureName || 'Nao informado'}`,
-    `Observacoes: ${draft.notes || 'Nenhuma'}`,
+    `👤 *Paciente:* ${draft.fullName}`,
+    `📄 *CPF:* ${formatCpf(draft.cpf)}`,
+    `📍 *Endereço:* ${draft.address}`,
+    `📅 *Data:* ${draft.date}`,
+    `🕒 *Horário:* ${draft.time}`,
+    `${isExam ? '🔬 *Exame:*' : '🩺 *Procedimento:*'} ${draft.procedureName || 'Não informado'}`,
+    `📝 *Observações:* ${draft.notes || 'Nenhuma'}`,
     '',
     'Deseja confirmar?',
     '',
-    '1. Confirmar',
-    '2. Corrigir',
-    '3. Cancelar',
+    '1️⃣ Confirmar',
+    '2️⃣ Corrigir',
+    '3️⃣ Cancelar',
   ].join('\n');
 }
 
 function buildRescheduleStartMessage() {
   return [
-    'Vamos remarcar seu atendimento.',
-    'Primeiro, me envie o CPF com 11 digitos do agendamento que deseja alterar.',
+    '📅 *Remarcação de atendimento*',
+    '',
+    'Vamos localizar seu agendamento com segurança.',
+    '',
+    '📄 Primeiro, envie o CPF com 11 dígitos do agendamento que deseja alterar.',
   ].join('\n');
 }
 
@@ -2508,18 +2535,23 @@ function buildPatientReminderText(appointment, reminderLabel) {
 
 function buildHumanHandoffMessage() {
   return [
-    'Certo.',
+    '🤝 Perfeito!',
     '',
-    'Vou encaminhar seu atendimento para a equipe da WR Gastro.',
-    'Em breve um de nossos atendentes continuara seu atendimento por aqui.',
+    'Vou encaminhar seu atendimento para nossa equipe.',
+    '',
+    '📲 Em breve um de nossos atendentes continuará seu atendimento por aqui.',
+    '',
+    'Agradecemos pela sua paciência. 💙',
   ].join('\n');
 }
 
 function buildPaymentTransferMessage() {
   return [
-    'Certo.',
+    '✅ Perfeito!',
     '',
-    'Vou chamar a equipe para finalizar o pagamento e continuar seu atendimento por aqui.',
+    'Vou encaminhar seu atendimento para nossa equipe financeira.',
+    '',
+    '📲 Em breve você receberá as orientações para pagamento e finalização.',
   ].join('\n');
 }
 
@@ -2649,9 +2681,11 @@ function buildSessionResumeMessage(session) {
   };
 
   return [
-    'Retomei seu atendimento de onde paramos.',
-    `Falta apenas: ${stepLabels[session?.step] || 'concluir o atendimento'}.`,
-    'Pode continuar me respondendo por aqui.',
+    '📋 *Vamos continuar seu atendimento*',
+    '',
+    `Falta apenas: *${stepLabels[session?.step] || 'concluir o atendimento'}*.`,
+    '',
+    'Pode continuar respondendo por aqui.',
   ].join('\n');
 }
 
@@ -2676,20 +2710,21 @@ function buildSessionNudgeMessage(session, nudgeNumber) {
 
   if (remaining <= 0) {
     return [
-      'Como nao tive retorno, vou encerrar este atendimento agora.',
+      '⏳ Como não tivemos retorno, vou encerrar este atendimento por enquanto.',
       '',
-      'Nenhum horario foi reservado.',
-      'Quando quiser recomecar, envie OI ou MENU.',
+      'Nenhum horário foi reservado.',
+      '',
+      'Quando quiser recomeçar, envie *OI* ou *MENU*.',
     ].join('\n');
   }
 
   return [
-    'Oi, voce ainda esta ai?',
+    'Oi, você ainda está por aí?',
     '',
-    `Seu atendimento esta parado na etapa: ${stepLabel}.`,
+    `Seu atendimento está parado na etapa: *${stepLabel}*.`,
     '',
     'Pode continuar respondendo por aqui.',
-    `Depois de mais ${remaining} aviso(s), encerro esse atendimento automaticamente.`,
+    `Depois de mais ${remaining} aviso(s), encerrarei esse atendimento automaticamente.`,
   ].join('\n');
 }
 
@@ -2729,28 +2764,33 @@ function recordWhatsAppLead(sender, lead) {
 
 function buildPreScheduleCompleteMessage() {
   return [
-    'Seu pre-agendamento foi recebido com sucesso.',
+    '✅ *Pré-agendamento recebido com sucesso!*',
     '',
-    'A equipe da WR Gastro ira verificar a disponibilidade e retornara por aqui para confirmação e orientações.',
+    'Nossa equipe verificará a disponibilidade do exame solicitado.',
     '',
-    buildHumanHandoffMessage(),
+    '📲 Em breve entraremos em contato por aqui para confirmação e orientações.',
   ].join('\n');
 }
 
 function buildConsultPreScheduleCompleteMessage() {
   return [
-    'Sua consulta foi agendada com sucesso.',
-    'Agradecemos sua preferência!',
+    '✅ *Pré-agendamento realizado com sucesso!*',
+    '',
+    'Recebemos suas informações.',
+    '',
+    'Nossa equipe irá analisar a disponibilidade e retornará em breve para confirmação.',
+    '',
+    '💙 Agradecemos pela preferência.',
   ].join('\n');
 }
 
 function buildSurgeryQuoteCompleteMessage() {
   return [
-    'Sua solicitacao de orcamento foi recebida com sucesso.',
+    '✅ *Solicitação recebida com sucesso!*',
     '',
-    'A equipe da WR Gastro ira avaliar as informacoes e retornara por aqui.',
+    'Nossa equipe avaliará as informações enviadas.',
     '',
-    buildHumanHandoffMessage(),
+    '📲 Em breve retornaremos por aqui com mais orientações.',
   ].join('\n');
 }
 
@@ -2767,7 +2807,7 @@ function buildFreeDatesListText(schedule = getSchedule()) {
   const freeTimeSlotsByDate = getFreeTimeSlotsByDate(schedule);
   const dates = getDatesWithFreeSlots(schedule);
   if (dates.length === 0) {
-    return 'No momento não existem datas liberadas.';
+    return '📅 No momento não há datas liberadas.';
   }
 
   return dates
@@ -2808,11 +2848,11 @@ function buildFreeTimesListText(date, schedule = getSchedule()) {
   const freeTimeSlotsByDate = getFreeTimeSlotsByDate(schedule);
   const times = freeTimeSlotsByDate[date] || [];
   if (times.length === 0) {
-    return `Não há horários livres para ${date}.`;
+    return `📅 Não há horários livres para ${date}.`;
   }
 
   return [
-    `Horarios livres em ${date}:`,
+    `🕒 *Horários livres em ${date}:*`,
     ...times.map((time, index) => `${index + 1}. ${time}`),
   ].join('\n');
 }
@@ -2821,30 +2861,36 @@ function buildGuidedStartMessage() {
   const schedule = getSchedule();
   const dates = getDatesWithFreeSlots(schedule);
   if (dates.length === 0) {
-    return 'No momento não existem datas liberadas. Envie "AJUDA" para ver os comandos disponíveis.';
+    return [
+      '📅 No momento, não há datas liberadas.',
+      '',
+      'Digite *MENU* para visualizar as opções disponíveis.',
+    ].join('\n');
   }
 
   return [
-    'Vamos agendar pelo WhatsApp.',
-    'Primeiro, me envie o nome completo do paciente.',
+    '🏥 *Agendamento pelo WhatsApp*',
     '',
-    'Datas com vaga no momento:',
+    '👤 Primeiro, envie o nome completo do paciente.',
+    '',
+    '📅 *Datas com vaga no momento:*',
     buildFreeDatesListText(schedule),
   ].join('\n');
 }
 
 function buildGuidedSummary(draft) {
   return [
-    'Confira os dados do agendamento:',
-    `Nome: ${draft.fullName}`,
-    `CPF: ${formatCpf(draft.cpf)}`,
-    `Endereco: ${draft.address}`,
-    `Data: ${draft.date}`,
-    `Horario: ${draft.time}`,
-    `Procedimento: ${draft.procedureName || 'Não informado'}`,
-    `Observacoes: ${draft.notes || 'Nenhuma'}`,
+    '📋 *Confira os dados do agendamento:*',
     '',
-    'Responda CONFIRMAR para concluir ou CANCELAR FLUXO para apagar esse atendimento.',
+    `👤 *Nome:* ${draft.fullName}`,
+    `📄 *CPF:* ${formatCpf(draft.cpf)}`,
+    `📍 *Endereço:* ${draft.address}`,
+    `📅 *Data:* ${draft.date}`,
+    `🕒 *Horário:* ${draft.time}`,
+    `🩺 *Procedimento:* ${draft.procedureName || 'Não informado'}`,
+    `📝 *Observações:* ${draft.notes || 'Nenhuma'}`,
+    '',
+    'Responda *CONFIRMAR* para concluir ou *CANCELAR FLUXO* para apagar esse atendimento.',
   ].join('\n');
 }
 
@@ -2857,7 +2903,7 @@ function executeGuidedWhatsAppFlow(session, text, sender) {
   if (!datesWithFreeSlots.length) {
     clearWhatsAppSession(sender.phoneNumber);
     return {
-      replyText: 'No momento não existem datas liberadas. Envie "AJUDA" para ver os comandos disponíveis.',
+      replyText: '📅 No momento, não há datas liberadas. Digite *MENU* para visualizar as opções disponíveis.',
       action: 'guided_no_dates',
     };
   }
@@ -2865,7 +2911,7 @@ function executeGuidedWhatsAppFlow(session, text, sender) {
   if (normalizedMessage === 'cancelarfluxo') {
     clearWhatsAppSession(sender.phoneNumber);
     return {
-      replyText: 'Fluxo de agendamento cancelado. Quando quiser voltar, envie AGENDAR.',
+      replyText: '✅ *Agendamento cancelado.*\n\nQuando quiser voltar, envie *MENU*.',
       action: 'guided_cancelled',
     };
   }
@@ -2874,33 +2920,33 @@ function executeGuidedWhatsAppFlow(session, text, sender) {
 
   if (session.step === 'name') {
     if (message.length < 5) {
-      return { replyText: 'Me envie o nome completo do paciente.', action: 'guided_retry_name' };
+      return { replyText: '👤 Informe o nome completo do paciente.', action: 'guided_retry_name' };
     }
     draft.fullName = message;
     saveWhatsAppSession(sender.phoneNumber, 'cpf', draft);
-    return { replyText: 'Agora me envie o CPF com 11 dígitos.', action: 'guided_collect_cpf' };
+    return { replyText: '📄 Agora informe o CPF com 11 dígitos.', action: 'guided_collect_cpf' };
   }
 
   if (session.step === 'cpf') {
     const cpf = normalizeCpf(message);
     if (cpf.length !== 11) {
-      return { replyText: 'CPF inválido. Envie os 11 dígitos do CPF.', action: 'guided_retry_cpf' };
+      return { replyText: '⚠️ Não consegui validar esse CPF. Envie os 11 dígitos, por favor.', action: 'guided_retry_cpf' };
     }
     draft.cpf = cpf;
     saveWhatsAppSession(sender.phoneNumber, 'address', draft);
-    return { replyText: 'Perfeito. Agora me envie o endereco completo.', action: 'guided_collect_address' };
+    return { replyText: '📍 Perfeito. Agora envie o endereço completo.', action: 'guided_collect_address' };
   }
 
   if (session.step === 'address') {
     if (message.length < 6) {
-      return { replyText: 'Me envie um endereco mais completo para continuar.', action: 'guided_retry_address' };
+      return { replyText: '📍 Envie um endereço mais completo para continuarmos.', action: 'guided_retry_address' };
     }
     draft.address = message;
     saveWhatsAppSession(sender.phoneNumber, 'date', draft);
     return {
       replyText: [
-        'Escolha a data do atendimento.',
-        'Você pode responder com o número da lista ou com a data no formato AAAA-MM-DD.',
+        '📅 Escolha a data do atendimento.',
+        'Você pode responder com o número da lista ou com a data no formato *AAAA-MM-DD*.',
         '',
         buildFreeDatesListText(schedule),
       ].join('\n'),
@@ -2913,8 +2959,8 @@ function executeGuidedWhatsAppFlow(session, text, sender) {
     if (!selectedDate) {
       return {
         replyText: [
-          'Não consegui identificar uma data livre.',
-          'Responda com o numero da lista ou com a data no formato AAAA-MM-DD.',
+          '⚠️ Não consegui identificar uma data livre.',
+          'Responda com o número da lista ou com a data no formato *AAAA-MM-DD*.',
           '',
           buildFreeDatesListText(schedule),
         ].join('\n'),
@@ -2925,8 +2971,8 @@ function executeGuidedWhatsAppFlow(session, text, sender) {
     saveWhatsAppSession(sender.phoneNumber, 'time', draft);
     return {
       replyText: [
-        'Agora escolha o horário.',
-        'Você pode responder com o número da lista ou com o horário no formato HH:MM.',
+        '🕒 Agora escolha o horário.',
+        'Você pode responder com o número da lista ou com o horário no formato *HH:MM*.',
         '',
         buildFreeTimesListText(selectedDate, schedule),
       ].join('\n'),
@@ -2939,7 +2985,7 @@ function executeGuidedWhatsAppFlow(session, text, sender) {
     if (!selectedTime) {
       return {
         replyText: [
-          'Esse horário não está livre.',
+          '⚠️ Esse horário não está livre.',
           'Escolha um dos horários abaixo:',
           '',
           buildFreeTimesListText(draft.date, schedule),
@@ -2950,7 +2996,7 @@ function executeGuidedWhatsAppFlow(session, text, sender) {
     draft.time = selectedTime;
     saveWhatsAppSession(sender.phoneNumber, 'procedure', draft);
     return {
-      replyText: 'Se quiser, me envie o procedimento. Se preferir pular, responda PULAR.',
+      replyText: '🩺 Se quiser, envie o procedimento. Se preferir pular, responda *PULAR*.',
       action: 'guided_collect_procedure',
     };
   }
@@ -2959,7 +3005,7 @@ function executeGuidedWhatsAppFlow(session, text, sender) {
     draft.procedureName = normalizedMessage === 'pular' ? '' : message;
     saveWhatsAppSession(sender.phoneNumber, 'notes', draft);
     return {
-      replyText: 'Se quiser adicionar observações, envie agora. Se não, responda PULAR.',
+      replyText: '📝 Se quiser adicionar observações, envie agora. Se não, responda *PULAR*.',
       action: 'guided_collect_notes',
     };
   }
@@ -2976,7 +3022,7 @@ function executeGuidedWhatsAppFlow(session, text, sender) {
   if (session.step === 'confirm') {
     if (normalizedMessage !== 'confirmar') {
       return {
-        replyText: 'Para concluir, responda CONFIRMAR. Se quiser apagar esse fluxo, envie CANCELAR FLUXO.',
+        replyText: 'Para concluir, responda *CONFIRMAR*. Se quiser apagar esse fluxo, envie *CANCELAR FLUXO*.',
         action: 'guided_retry_confirm',
       };
     }
@@ -3006,7 +3052,7 @@ function executeGuidedWhatsAppFlow(session, text, sender) {
     );
 
     return {
-      replyText: `Agendamento confirmado para ${appointment.fullName} em ${appointment.date} as ${appointment.time}.`,
+      replyText: `✅ *Agendamento confirmado!*\n\n👤 Paciente: ${appointment.fullName}\n📅 Data: ${appointment.date}\n🕒 Horário: ${appointment.time}`,
       action: 'guided_create_appointment',
       appointment,
     };
@@ -3056,13 +3102,13 @@ function executeWhatsAppCommand(command, sender) {
     const appointment = findAppointmentByCpfAndDate(cpf, date);
     if (!appointment) {
       return {
-        replyText: 'Não encontrei agendamento ativo com esse CPF e essa data. Envie "DATAS" para ver as datas liberadas.',
+        replyText: '⚠️ Não encontrei um agendamento ativo com esse CPF e essa data.\n\nDigite *DATAS* para ver as opções disponíveis.',
         action: 'status_not_found',
       };
     }
 
     return {
-      replyText: `Agendamento encontrado para ${appointment.fullName} em ${appointment.date}${appointment.time ? ` as ${appointment.time}` : ''}. Status atual: ${appointment.status}.`,
+      replyText: `📋 *Agendamento encontrado*\n\n👤 Paciente: ${appointment.fullName}\n📅 Data: ${appointment.date}${appointment.time ? `\n🕒 Horário: ${appointment.time}` : ''}\n\n*Status atual:* ${appointment.status}.`,
       action: 'status_found',
       appointment,
     };
@@ -3072,7 +3118,7 @@ function executeWhatsAppCommand(command, sender) {
     const appointment = findAppointmentByCpfAndDate(cpf, date);
     if (!appointment) {
       return {
-        replyText: 'Não encontrei agendamento ativo para cancelar com esse CPF e essa data.',
+        replyText: '⚠️ Não encontrei um agendamento ativo para cancelar com esse CPF e essa data.',
         action: 'cancel_not_found',
       };
     }
@@ -3083,7 +3129,7 @@ function executeWhatsAppCommand(command, sender) {
       role: 'system',
     });
     return {
-      replyText: `Agendamento de ${updated.fullName} em ${updated.date}${updated.time ? ` as ${updated.time}` : ''} foi cancelado com sucesso.`,
+      replyText: `✅ *Cancelamento concluído.*\n\nO agendamento de ${updated.fullName} em ${updated.date}${updated.time ? ` às ${updated.time}` : ''} foi cancelado com sucesso.`,
       action: 'cancel_appointment',
       appointment: updated,
     };
@@ -3127,7 +3173,7 @@ function executeWhatsAppCommand(command, sender) {
     );
 
     return {
-      replyText: `Agendamento criado com sucesso para ${appointment.fullName} em ${appointment.date} as ${appointment.time}. Status: ${appointment.status}.`,
+      replyText: `✅ *Agendamento criado com sucesso!*\n\n👤 Paciente: ${appointment.fullName}\n📅 Data: ${appointment.date}\n🕒 Horário: ${appointment.time}\n\n*Status:* ${appointment.status}.`,
       action: 'create_appointment',
       appointment,
     };
@@ -3146,7 +3192,7 @@ function executeEnhancedGuidedWhatsAppFlow(session, text, sender) {
   if (['cancelarfluxo', 'cancelar', 'sair', 'encerrar'].includes(normalizedMessage)) {
     clearWhatsAppSession(sender.phoneNumber);
     return {
-      replyText: 'Fluxo cancelado com sucesso. Quando quiser retomar, envie MENU.',
+      replyText: '✅ *Atendimento cancelado com sucesso.*\n\nQuando quiser retomar, envie *MENU* para ver as opções disponíveis.',
       action: 'guided_cancelled',
     };
   }
@@ -3243,51 +3289,67 @@ function executeEnhancedGuidedWhatsAppFlow(session, text, sender) {
 
   if (session.step === 'consult_full_name') {
     if (message.length < 5) {
-      return { replyText: 'Para seguir, envie o nome completo do paciente.', action: 'consult_retry_name' };
+      return { replyText: '👤 Qual o nome completo do paciente?', action: 'consult_retry_name' };
     }
     draft.type = 'consult_pre_schedule';
     draft.typeLabel = 'Pre-agendamento de consulta';
     draft.fullName = message;
     draft.contactPhone = sender.phoneNumber;
     saveWhatsAppSession(sender.phoneNumber, 'consult_phone', draft);
-    return { replyText: 'Agora envie o telefone para contato.', action: 'consult_collect_phone' };
+    return { replyText: '📞 Qual o melhor telefone para contato?', action: 'consult_collect_phone' };
   }
 
   if (session.step === 'consult_phone') {
     const phone = normalizePhoneNumber(message);
     if (phone.length < 10) {
-      return { replyText: 'Envie um telefone valido com DDD.', action: 'consult_retry_phone' };
+      return { replyText: '📞 Informe um telefone válido com DDD para contato.', action: 'consult_retry_phone' };
     }
     draft.phone = phone;
     saveWhatsAppSession(sender.phoneNumber, 'consult_insurance', draft);
-    return { replyText: 'O atendimento sera por convenio ou particular?', action: 'consult_collect_insurance' };
+    return {
+      replyText: [
+        '📄 Possui convênio?',
+        '',
+        'Caso possua, informe o nome do convênio.',
+      ].join('\n'),
+      action: 'consult_collect_insurance',
+    };
   }
 
   if (session.step === 'consult_insurance') {
     if (message.length < 3) {
-      return { replyText: 'Informe se sera por convenio ou particular.', action: 'consult_retry_insurance' };
+      return { replyText: '📄 Informe o convênio ou responda *PARTICULAR*.', action: 'consult_retry_insurance' };
     }
     draft.insurance = message;
     saveWhatsAppSession(sender.phoneNumber, 'consult_preferred_date', draft);
-    return { replyText: 'Qual a data para atendimento?', action: 'consult_collect_preferred_date' };
+    return { replyText: '📅 Qual a data desejada para o atendimento?', action: 'consult_collect_preferred_date' };
   }
 
   if (session.step === 'consult_preferred_date') {
     if (message.length < 2) {
-      return { replyText: 'Informe a melhor data para atendimento.', action: 'consult_retry_preferred_date' };
+      return { replyText: '📅 Informe a data desejada para o atendimento.', action: 'consult_retry_preferred_date' };
     }
     draft.preferredDate = message;
     saveWhatsAppSession(sender.phoneNumber, 'consult_preferred_time', draft);
-    return { replyText: 'Qual o melhor horario?', action: 'consult_collect_preferred_time' };
+    return { replyText: '🕒 Qual horário você prefere?', action: 'consult_collect_preferred_time' };
   }
 
   if (session.step === 'consult_preferred_time') {
     if (message.length < 2) {
-      return { replyText: 'Informe o melhor horario.', action: 'consult_retry_preferred_time' };
+      return { replyText: '🕒 Informe o horário de sua preferência.', action: 'consult_retry_preferred_time' };
     }
     draft.preferredTime = message;
     saveWhatsAppSession(sender.phoneNumber, 'consult_notes', draft);
-    return { replyText: 'Deseja adicionar alguma observacao? Se nao, responda PULAR.', action: 'consult_collect_notes' };
+    return {
+      replyText: [
+        '📝 Deseja adicionar alguma observação?',
+        '',
+        'Caso não tenha, responda:',
+        '',
+        '*PULAR*',
+      ].join('\n'),
+      action: 'consult_collect_notes',
+    };
   }
 
   if (session.step === 'consult_notes') {
@@ -3303,60 +3365,89 @@ function executeEnhancedGuidedWhatsAppFlow(session, text, sender) {
 
   if (session.step === 'exam_full_name') {
     if (message.length < 5) {
-      return { replyText: 'Para seguir, envie o nome completo do paciente.', action: 'exam_retry_name' };
+      return { replyText: '👤 Qual o nome completo do paciente?', action: 'exam_retry_name' };
     }
     draft.type = 'exam_pre_schedule';
     draft.typeLabel = 'Pre-agendamento de exame';
     draft.fullName = message;
     draft.contactPhone = sender.phoneNumber;
     saveWhatsAppSession(sender.phoneNumber, 'exam_phone', draft);
-    return { replyText: 'Agora envie o telefone para contato.', action: 'exam_collect_phone' };
+    return { replyText: '📞 Qual o melhor telefone para contato?', action: 'exam_collect_phone' };
   }
 
   if (session.step === 'exam_phone') {
     const phone = normalizePhoneNumber(message);
     if (phone.length < 10) {
-      return { replyText: 'Envie um telefone valido com DDD.', action: 'exam_retry_phone' };
+      return { replyText: '📞 Informe um telefone válido com DDD para contato.', action: 'exam_retry_phone' };
     }
     draft.phone = phone;
     saveWhatsAppSession(sender.phoneNumber, 'exam_name', draft);
-    return { replyText: 'Qual exame deseja agendar?', action: 'exam_collect_name' };
+    return {
+      replyText: [
+        '🩺 Qual exame deseja realizar?',
+        '',
+        'Exemplos:',
+        '',
+        '• Endoscopia',
+        '• Colonoscopia',
+        '• Outro exame solicitado',
+      ].join('\n'),
+      action: 'exam_collect_name',
+    };
   }
 
   if (session.step === 'exam_name') {
     if (message.length < 3) {
-      return { replyText: 'Informe o exame desejado.', action: 'exam_retry_name_field' };
+      return { replyText: '🩺 Informe qual exame deseja realizar.', action: 'exam_retry_name_field' };
     }
     draft.examName = message;
     saveWhatsAppSession(sender.phoneNumber, 'exam_insurance', draft);
-    return { replyText: 'O exame sera por convenio ou particular?', action: 'exam_collect_insurance' };
+    return {
+      replyText: [
+        '📄 Informe seu convênio.',
+        '',
+        'Caso não possua, responda:',
+        '',
+        '*PARTICULAR*',
+      ].join('\n'),
+      action: 'exam_collect_insurance',
+    };
   }
 
   if (session.step === 'exam_insurance') {
     if (message.length < 3) {
-      return { replyText: 'Informe se sera por convenio ou particular.', action: 'exam_retry_insurance' };
+      return { replyText: '📄 Informe seu convênio ou responda *PARTICULAR*.', action: 'exam_retry_insurance' };
     }
     draft.insurance = message;
     saveWhatsAppSession(sender.phoneNumber, 'exam_preferred_date', draft);
-    return { replyText: 'Qual a melhor data para o exame?', action: 'exam_collect_preferred_date' };
+    return { replyText: '📅 Qual data deseja realizar o exame?', action: 'exam_collect_preferred_date' };
   }
 
   if (session.step === 'exam_preferred_date') {
     if (message.length < 2) {
-      return { replyText: 'Informe a melhor data para o exame.', action: 'exam_retry_preferred_date' };
+      return { replyText: '📅 Informe a data desejada para realizar o exame.', action: 'exam_retry_preferred_date' };
     }
     draft.preferredDate = message;
     saveWhatsAppSession(sender.phoneNumber, 'exam_preferred_time', draft);
-    return { replyText: 'Qual o melhor horario?', action: 'exam_collect_preferred_time' };
+    return { replyText: '🕒 Qual horário prefere?', action: 'exam_collect_preferred_time' };
   }
 
   if (session.step === 'exam_preferred_time') {
     if (message.length < 2) {
-      return { replyText: 'Informe o melhor horario.', action: 'exam_retry_preferred_time' };
+      return { replyText: '🕒 Informe o horário de sua preferência.', action: 'exam_retry_preferred_time' };
     }
     draft.preferredTime = message;
     saveWhatsAppSession(sender.phoneNumber, 'exam_notes', draft);
-    return { replyText: 'Deseja adicionar alguma observacao? Se nao, responda PULAR.', action: 'exam_collect_notes' };
+    return {
+      replyText: [
+        '📝 Deseja adicionar alguma observação?',
+        '',
+        'Caso não tenha, responda:',
+        '',
+        '*PULAR*',
+      ].join('\n'),
+      action: 'exam_collect_notes',
+    };
   }
 
   if (session.step === 'exam_notes') {
@@ -3376,33 +3467,42 @@ function executeEnhancedGuidedWhatsAppFlow(session, text, sender) {
 
   if (session.step === 'surgery_quote_full_name') {
     if (message.length < 5) {
-      return { replyText: 'Para seguir, envie o nome completo do paciente.', action: 'surgery_quote_retry_name' };
+      return { replyText: '👤 Informe o nome completo do paciente.', action: 'surgery_quote_retry_name' };
     }
     draft.type = 'surgery_quote';
     draft.typeLabel = 'Orcamento de cirurgia';
     draft.fullName = message;
     draft.contactPhone = sender.phoneNumber;
     saveWhatsAppSession(sender.phoneNumber, 'surgery_quote_phone', draft);
-    return { replyText: 'Agora envie o telefone para contato.', action: 'surgery_quote_collect_phone' };
+    return { replyText: '📞 Informe o telefone para contato.', action: 'surgery_quote_collect_phone' };
   }
 
   if (session.step === 'surgery_quote_phone') {
     const phone = normalizePhoneNumber(message);
     if (phone.length < 10) {
-      return { replyText: 'Envie um telefone valido com DDD.', action: 'surgery_quote_retry_phone' };
+      return { replyText: '📞 Informe um telefone válido com DDD para contato.', action: 'surgery_quote_retry_phone' };
     }
     draft.phone = phone;
     saveWhatsAppSession(sender.phoneNumber, 'surgery_quote_procedure', draft);
-    return { replyText: 'Qual procedimento desejado?', action: 'surgery_quote_collect_procedure' };
+    return { replyText: '🩺 Qual procedimento deseja realizar?', action: 'surgery_quote_collect_procedure' };
   }
 
   if (session.step === 'surgery_quote_procedure') {
     if (message.length < 3) {
-      return { replyText: 'Informe o procedimento desejado.', action: 'surgery_quote_retry_procedure' };
+      return { replyText: '🩺 Informe o procedimento que deseja realizar.', action: 'surgery_quote_retry_procedure' };
     }
     draft.procedureName = message;
     saveWhatsAppSession(sender.phoneNumber, 'surgery_quote_notes', draft);
-    return { replyText: 'Envie observacoes importantes para a equipe. Se nao houver, responda PULAR.', action: 'surgery_quote_collect_notes' };
+    return {
+      replyText: [
+        '📝 Deseja adicionar alguma observação importante?',
+        '',
+        'Caso não tenha, responda:',
+        '',
+        '*PULAR*',
+      ].join('\n'),
+      action: 'surgery_quote_collect_notes',
+    };
   }
 
   if (session.step === 'surgery_quote_notes') {
@@ -3423,40 +3523,40 @@ function executeEnhancedGuidedWhatsAppFlow(session, text, sender) {
   if (!datesWithFreeSlots.length && !String(session?.step || '').startsWith('human_')) {
     clearWhatsAppSession(sender.phoneNumber);
     return {
-      replyText: 'No momento nao existem horarios liberados. Se preferir, envie ATENDENTE para falar com a equipe.',
+      replyText: '📅 No momento, não há horários liberados.\n\nSe preferir, digite *ATENDENTE* para falar com nossa equipe.',
       action: 'guided_no_dates',
     };
   }
 
   if (session.step === 'name') {
     if (message.length < 5) {
-      return { replyText: 'Para seguir com seguranca, me envie o nome completo do paciente.', action: 'guided_retry_name' };
+      return { replyText: '👤 Para seguir com segurança, informe o nome completo do paciente.', action: 'guided_retry_name' };
     }
     draft.fullName = message;
     saveWhatsAppSession(sender.phoneNumber, 'cpf', draft);
-    return { replyText: 'Perfeito. Agora me envie o CPF com 11 digitos.', action: 'guided_collect_cpf' };
+    return { replyText: '📄 Perfeito. Agora informe o CPF com 11 dígitos.', action: 'guided_collect_cpf' };
   }
 
   if (session.step === 'cpf') {
     const cpf = normalizeCpf(message);
     if (cpf.length !== 11) {
-      return { replyText: 'Nao consegui validar esse CPF. Envie os 11 digitos, sem pontos ou tracos.', action: 'guided_retry_cpf' };
+      return { replyText: '⚠️ Não consegui validar esse CPF. Envie os 11 dígitos, sem pontos ou traços.', action: 'guided_retry_cpf' };
     }
     draft.cpf = cpf;
     saveWhatsAppSession(sender.phoneNumber, 'address', draft);
-    return { replyText: 'Certo. Agora me envie o endereco completo.', action: 'guided_collect_address' };
+    return { replyText: '📍 Perfeito. Agora envie o endereço completo.', action: 'guided_collect_address' };
   }
 
   if (session.step === 'address') {
     if (message.length < 6) {
-      return { replyText: 'Preciso de um endereco mais completo para continuar o cadastro.', action: 'guided_retry_address' };
+      return { replyText: '📍 Preciso de um endereço mais completo para continuar o cadastro.', action: 'guided_retry_address' };
     }
     draft.address = message;
     saveWhatsAppSession(sender.phoneNumber, 'date', draft);
     return {
       replyText: [
-        'Agora escolha a data do atendimento.',
-        'Voce pode responder com o numero da lista ou com a data no formato AAAA-MM-DD.',
+        '📅 Agora escolha a data do atendimento.',
+        'Você pode responder com o número da lista ou com a data no formato *AAAA-MM-DD*.',
         '',
         buildFreeDatesListText(schedule),
       ].join('\n'),
@@ -3469,8 +3569,8 @@ function executeEnhancedGuidedWhatsAppFlow(session, text, sender) {
     if (!selectedDate) {
       return {
         replyText: [
-          'Nao consegui identificar uma data livre.',
-          'Responda com o numero da lista ou com a data no formato AAAA-MM-DD.',
+          '⚠️ Não consegui identificar uma data livre.',
+          'Responda com o número da lista ou com a data no formato *AAAA-MM-DD*.',
           '',
           buildFreeDatesListText(schedule),
         ].join('\n'),
@@ -3481,8 +3581,8 @@ function executeEnhancedGuidedWhatsAppFlow(session, text, sender) {
     saveWhatsAppSession(sender.phoneNumber, 'time', draft);
     return {
       replyText: [
-        'Agora escolha o horario.',
-        'Voce pode responder com o numero da lista ou com o horario no formato HH:MM.',
+        '🕒 Agora escolha o horário.',
+        'Você pode responder com o número da lista ou com o horário no formato *HH:MM*.',
         '',
         buildFreeTimesListText(selectedDate, schedule),
       ].join('\n'),
@@ -3495,7 +3595,7 @@ function executeEnhancedGuidedWhatsAppFlow(session, text, sender) {
     if (!selectedTime) {
       return {
         replyText: [
-          'Esse horario nao esta mais livre.',
+          '⚠️ Esse horário não está mais livre.',
           'Escolha uma das opcoes abaixo:',
           '',
           buildFreeTimesListText(draft.date, schedule),
@@ -3507,14 +3607,14 @@ function executeEnhancedGuidedWhatsAppFlow(session, text, sender) {
     if (draft.lockProcedure && draft.procedureName) {
       saveWhatsAppSession(sender.phoneNumber, 'notes', draft);
       return {
-        replyText: 'Se quiser adicionar observacoes, envie agora. Se nao, responda PULAR.',
+        replyText: '📝 Se quiser adicionar observações, envie agora. Se não, responda *PULAR*.',
         action: 'guided_collect_notes',
       };
     }
 
     saveWhatsAppSession(sender.phoneNumber, 'procedure', draft);
     return {
-      replyText: draft.procedurePrompt || 'Se desejar, me envie o procedimento. Se quiser pular essa etapa, responda PULAR.',
+      replyText: draft.procedurePrompt || '🩺 Se desejar, envie o procedimento. Se quiser pular essa etapa, responda *PULAR*.',
       action: 'guided_collect_procedure',
     };
   }
@@ -3523,7 +3623,7 @@ function executeEnhancedGuidedWhatsAppFlow(session, text, sender) {
     draft.procedureName = normalizedMessage === 'pular' ? '' : message;
     saveWhatsAppSession(sender.phoneNumber, 'notes', draft);
     return {
-      replyText: 'Se quiser adicionar observacoes, envie agora. Se nao, responda PULAR.',
+      replyText: '📝 Se quiser adicionar observações, envie agora. Se não, responda *PULAR*.',
       action: 'guided_collect_notes',
     };
   }
@@ -3541,7 +3641,7 @@ function executeEnhancedGuidedWhatsAppFlow(session, text, sender) {
     if (['2', 'corrigir'].includes(normalizedMessage)) {
       saveWhatsAppSession(sender.phoneNumber, 'name', draft);
       return {
-        replyText: 'Vamos corrigir os dados. Envie novamente o nome completo do paciente.',
+        replyText: '✏️ Vamos corrigir os dados.\n\n👤 Envie novamente o nome completo do paciente.',
         action: 'guided_correct',
       };
     }
@@ -3549,14 +3649,14 @@ function executeEnhancedGuidedWhatsAppFlow(session, text, sender) {
     if (['3', 'cancelar', 'cancelarfluxo', 'sair', 'encerrar'].includes(normalizedMessage)) {
       clearWhatsAppSession(sender.phoneNumber);
       return {
-        replyText: 'Fluxo cancelado com sucesso. Quando quiser retomar, envie MENU.',
+        replyText: '✅ *Atendimento cancelado com sucesso.*\n\nQuando quiser retomar, envie *MENU*.',
         action: 'guided_cancelled',
       };
     }
 
     if (!['1', 'confirmar'].includes(normalizedMessage)) {
       return {
-        replyText: 'Para concluir com seguranca, responda CONFIRMAR. Para corrigir, responda CORRIGIR. Para sair, responda CANCELAR.',
+        replyText: '⚠️ Para concluir com segurança, responda *CONFIRMAR*.\n\nPara corrigir, responda *CORRIGIR*.\nPara sair, responda *CANCELAR*.',
         action: 'guided_retry_confirm',
       };
     }
@@ -3587,13 +3687,13 @@ function executeEnhancedGuidedWhatsAppFlow(session, text, sender) {
 
     return {
       replyText: [
-        'Agendamento confirmado com sucesso ✅',
+        '✅ *Agendamento confirmado com sucesso!*',
         '',
-        `Paciente: ${appointment.fullName}`,
-        `Data: ${appointment.date}`,
-        `Horario: ${appointment.time}`,
+        `👤 Paciente: ${appointment.fullName}`,
+        `📅 Data: ${appointment.date}`,
+        `🕒 Horário: ${appointment.time}`,
         '',
-        'O horario ja ficou reservado no sistema.',
+        'O horário já ficou reservado no sistema.',
       ].join('\n'),
       action: 'guided_create_appointment',
       appointment,
@@ -3603,12 +3703,12 @@ function executeEnhancedGuidedWhatsAppFlow(session, text, sender) {
   if (session.step === 'reschedule_cpf') {
     const cpf = normalizeCpf(message);
     if (cpf.length !== 11) {
-      return { replyText: 'Envie o CPF com 11 digitos do agendamento que deseja remarcar.', action: 'reschedule_retry_cpf' };
+      return { replyText: '📄 Envie o CPF com 11 dígitos do agendamento que deseja remarcar.', action: 'reschedule_retry_cpf' };
     }
     draft.cpf = cpf;
     saveWhatsAppSession(sender.phoneNumber, 'reschedule_current_date', draft);
     return {
-      replyText: 'Agora me informe a data atual do agendamento no formato AAAA-MM-DD.',
+      replyText: '📅 Agora informe a data atual do agendamento no formato *AAAA-MM-DD*.',
       action: 'reschedule_collect_current_date',
     };
   }
@@ -3616,14 +3716,14 @@ function executeEnhancedGuidedWhatsAppFlow(session, text, sender) {
   if (session.step === 'reschedule_current_date') {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(message)) {
       return {
-        replyText: 'Nao consegui identificar a data atual. Envie no formato AAAA-MM-DD.',
+        replyText: '⚠️ Não consegui identificar a data atual.\n\nEnvie no formato *AAAA-MM-DD*.',
         action: 'reschedule_retry_current_date',
       };
     }
     const appointment = findAppointmentByCpfAndDate(draft.cpf, message);
     if (!appointment) {
       return {
-        replyText: 'Nao encontrei um agendamento ativo com esse CPF e essa data. Confira os dados ou envie ATENDENTE.',
+        replyText: '⚠️ Não encontrei um agendamento ativo com esse CPF e essa data.\n\nConfira os dados ou envie *ATENDENTE*.',
         action: 'reschedule_not_found',
       };
     }
@@ -3634,7 +3734,11 @@ function executeEnhancedGuidedWhatsAppFlow(session, text, sender) {
     saveWhatsAppSession(sender.phoneNumber, 'reschedule_new_date', draft);
     return {
       replyText: [
-        `Encontrei o agendamento de ${appointment.fullName} em ${appointment.date}${appointment.time ? ` as ${appointment.time}` : ''}.`,
+        '📋 *Agendamento localizado*',
+        '',
+        `👤 Paciente: ${appointment.fullName}`,
+        `📅 Data atual: ${appointment.date}${appointment.time ? ` às ${appointment.time}` : ''}`,
+        '',
         'Agora escolha a nova data.',
         '',
         buildFreeDatesListText(schedule),
@@ -3648,8 +3752,8 @@ function executeEnhancedGuidedWhatsAppFlow(session, text, sender) {
     if (!selectedDate) {
       return {
         replyText: [
-          'Nao consegui identificar a nova data.',
-          'Responda com o numero da lista ou com a data no formato AAAA-MM-DD.',
+          '⚠️ Não consegui identificar a nova data.',
+          'Responda com o número da lista ou com a data no formato *AAAA-MM-DD*.',
           '',
           buildFreeDatesListText(schedule),
         ].join('\n'),
@@ -3660,7 +3764,7 @@ function executeEnhancedGuidedWhatsAppFlow(session, text, sender) {
     saveWhatsAppSession(sender.phoneNumber, 'reschedule_new_time', draft);
     return {
       replyText: [
-        `Agora escolha o novo horario para ${selectedDate}.`,
+        `🕒 Agora escolha o novo horário para *${selectedDate}*.`,
         '',
         buildFreeTimesListText(selectedDate, schedule),
       ].join('\n'),
@@ -3673,7 +3777,7 @@ function executeEnhancedGuidedWhatsAppFlow(session, text, sender) {
     if (!selectedTime) {
       return {
         replyText: [
-          'Esse horario nao esta disponivel.',
+          '⚠️ Esse horário não está disponível.',
           '',
           buildFreeTimesListText(draft.newDate, schedule),
         ].join('\n'),
@@ -3684,12 +3788,13 @@ function executeEnhancedGuidedWhatsAppFlow(session, text, sender) {
     saveWhatsAppSession(sender.phoneNumber, 'reschedule_confirm', draft);
     return {
       replyText: [
-        'Confira a remarcacao:',
-        `Paciente: ${draft.fullName}`,
-        `De: ${draft.currentDate}${draft.currentTime ? ` as ${draft.currentTime}` : ''}`,
-        `Para: ${draft.newDate} as ${draft.newTime}`,
+        '📋 *Confira a remarcação:*',
         '',
-        'Responda CONFIRMAR para concluir ou CANCELAR FLUXO para sair.',
+        `👤 Paciente: ${draft.fullName}`,
+        `De: ${draft.currentDate}${draft.currentTime ? ` às ${draft.currentTime}` : ''}`,
+        `Para: ${draft.newDate} às ${draft.newTime}`,
+        '',
+        'Responda *CONFIRMAR* para concluir ou *CANCELAR FLUXO* para sair.',
       ].join('\n'),
       action: 'reschedule_confirm',
     };
@@ -3700,7 +3805,7 @@ function executeEnhancedGuidedWhatsAppFlow(session, text, sender) {
       saveWhatsAppSession(sender.phoneNumber, 'reschedule_new_date', draft);
       return {
         replyText: [
-          'Vamos corrigir a remarcacao.',
+          '✏️ Vamos corrigir a remarcação.',
           'Escolha novamente a nova data.',
           '',
           buildFreeDatesListText(schedule),
@@ -3712,14 +3817,14 @@ function executeEnhancedGuidedWhatsAppFlow(session, text, sender) {
     if (['3', 'cancelar', 'cancelarfluxo', 'sair', 'encerrar'].includes(normalizedMessage)) {
       clearWhatsAppSession(sender.phoneNumber);
       return {
-        replyText: 'Fluxo cancelado com sucesso. Quando quiser retomar, envie MENU.',
+        replyText: '✅ *Atendimento cancelado com sucesso.*\n\nQuando quiser retomar, envie *MENU*.',
         action: 'reschedule_cancelled',
       };
     }
 
     if (!['1', 'confirmar'].includes(normalizedMessage)) {
       return {
-        replyText: 'Para concluir a remarcacao, responda CONFIRMAR. Para corrigir, responda CORRIGIR. Para sair, responda CANCELAR.',
+        replyText: '⚠️ Para concluir a remarcação, responda *CONFIRMAR*.\n\nPara corrigir, responda *CORRIGIR*.\nPara sair, responda *CANCELAR*.',
         action: 'reschedule_retry_confirm',
       };
     }
@@ -3736,7 +3841,7 @@ function executeEnhancedGuidedWhatsAppFlow(session, text, sender) {
     clearWhatsAppSession(sender.phoneNumber);
     notifyDoctorAboutReschedule(appointment, previousDate, previousTime).catch(() => {});
     return {
-      replyText: `Remarcacao concluida com sucesso ✅\n\nSeu atendimento ficou para ${appointment.date} as ${appointment.time}.`,
+      replyText: `✅ *Remarcação concluída com sucesso!*\n\nSeu atendimento ficou para ${appointment.date} às ${appointment.time}.`,
       action: 'reschedule_complete',
       appointment,
     };
@@ -3817,13 +3922,13 @@ function executeEnhancedWhatsAppCommand(command, sender) {
     const appointment = findAppointmentByCpfAndDate(cpf, date);
     if (!appointment) {
       return {
-        replyText: 'Nao encontrei agendamento ativo com esse CPF e essa data. Se quiser, envie DATAS para ver novas vagas.',
+        replyText: '⚠️ Não encontrei um agendamento ativo com esse CPF e essa data.\n\nSe quiser, envie *DATAS* para ver novas vagas.',
         action: 'status_not_found',
       };
     }
 
     return {
-      replyText: `Encontrei o agendamento de ${appointment.fullName} para ${appointment.date}${appointment.time ? ` as ${appointment.time}` : ''}. Status atual: ${appointment.status}.`,
+      replyText: `📋 *Agendamento encontrado*\n\n👤 Paciente: ${appointment.fullName}\n📅 Data: ${appointment.date}${appointment.time ? `\n🕒 Horário: ${appointment.time}` : ''}\n\n*Status atual:* ${appointment.status}.`,
       action: 'status_found',
       appointment,
     };
@@ -3833,7 +3938,7 @@ function executeEnhancedWhatsAppCommand(command, sender) {
     const appointment = findAppointmentByCpfAndDate(cpf, date);
     if (!appointment) {
       return {
-        replyText: 'Nao encontrei agendamento ativo para cancelar com esse CPF e essa data.',
+        replyText: '⚠️ Não encontrei um agendamento ativo para cancelar com esse CPF e essa data.',
         action: 'cancel_not_found',
       };
     }
@@ -3845,7 +3950,7 @@ function executeEnhancedWhatsAppCommand(command, sender) {
     });
     clearWhatsAppSession(sender.phoneNumber);
     return {
-      replyText: `Cancelamento concluido. O agendamento de ${updated.fullName} em ${updated.date}${updated.time ? ` as ${updated.time}` : ''} foi cancelado com sucesso.`,
+      replyText: `✅ *Cancelamento concluído.*\n\nO agendamento de ${updated.fullName} em ${updated.date}${updated.time ? ` às ${updated.time}` : ''} foi cancelado com sucesso.`,
       action: 'cancel_appointment',
       appointment: updated,
     };
@@ -3867,7 +3972,7 @@ function executeEnhancedWhatsAppCommand(command, sender) {
     const appointment = findAppointmentByCpfAndDate(cpf, currentDate);
     if (!appointment) {
       return {
-        replyText: 'Nao encontrei um agendamento ativo com esse CPF e a data informada.',
+        replyText: '⚠️ Não encontrei um agendamento ativo com esse CPF e a data informada.',
         action: 'reschedule_not_found',
       };
     }
@@ -3880,7 +3985,7 @@ function executeEnhancedWhatsAppCommand(command, sender) {
     );
     notifyDoctorAboutReschedule(updated, appointment.date, appointment.time).catch(() => {});
     return {
-      replyText: `Remarcacao concluida com sucesso. Seu atendimento ficou para ${updated.date} as ${updated.time}.`,
+      replyText: `✅ *Remarcação concluída com sucesso!*\n\nSeu atendimento ficou para ${updated.date} às ${updated.time}.`,
       action: 'reschedule_complete',
       appointment: updated,
     };
@@ -3924,7 +4029,7 @@ function executeEnhancedWhatsAppCommand(command, sender) {
     );
 
     return {
-      replyText: `Agendamento criado com sucesso para ${appointment.fullName} em ${appointment.date} as ${appointment.time}.`,
+      replyText: `✅ *Agendamento criado com sucesso!*\n\n👤 Paciente: ${appointment.fullName}\n📅 Data: ${appointment.date}\n🕒 Horário: ${appointment.time}`,
       action: 'create_appointment',
       appointment,
     };
