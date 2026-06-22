@@ -530,6 +530,20 @@ function getMinutesSince(isoString) {
   return Math.floor((Date.now() - parsed.getTime()) / (60 * 1000));
 }
 
+function isWhatsAppBusinessAutomaticGreeting(text) {
+  const normalizedText = String(text || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  return normalizedText.includes('ola estamos feliz por ter voce aqui')
+    && normalizedText.includes('wr gastro agradece seu contato')
+    && normalizedText.includes('como podemos ajudar');
+}
+
 function markManualOutboundGuard(phoneNumber, details = {}) {
   const normalizedPhone = normalizePhoneNumber(phoneNumber);
   if (!normalizedPhone) return null;
@@ -546,6 +560,7 @@ function markManualOutboundGuard(phoneNumber, details = {}) {
 
 function isManualOutboundGuardActive(session) {
   if (session?.step !== 'manual_outbound_guard') return false;
+  if (isWhatsAppBusinessAutomaticGreeting(session.draft?.messageText)) return false;
   const suppressUntil = parseIsoDate(session.draft?.suppressUntil);
   return Boolean(suppressUntil && suppressUntil.getTime() > Date.now());
 }
@@ -4297,7 +4312,8 @@ async function processIncomingWhatsAppMessage({
   const dedupPayload = { from, profileName, text, source, fromMe: Boolean(fromMe), fromMeBot: Boolean(fromMeBot) };
 
   if (fromMe) {
-    if (!fromMeBot) {
+    const automaticBusinessGreeting = !fromMeBot && isWhatsAppBusinessAutomaticGreeting(text);
+    if (!fromMeBot && !automaticBusinessGreeting) {
       markManualOutboundGuard(sender.phoneNumber, { source, text, metaMessageId });
     }
 
@@ -4309,7 +4325,13 @@ async function processIncomingWhatsAppMessage({
       messageText: text,
       status: 'from_me_ignored',
       metaMessageId,
-      details: { source, fromMe: true, fromMeBot: Boolean(fromMeBot), manualOutboundGuard: !fromMeBot },
+      details: {
+        source,
+        fromMe: true,
+        fromMeBot: Boolean(fromMeBot),
+        automaticBusinessGreeting,
+        manualOutboundGuard: !fromMeBot && !automaticBusinessGreeting,
+      },
     });
 
     return {
